@@ -1,0 +1,57 @@
+# Never commit game binaries, decompiled code, or Valve / STRAFTAT assets.
+*.dll
+*.pdb
+*.exe
+*.mdb
+Managed/
+BepInEx/
+*.decompiled.*
+decompiled/
+ilspy-out/
+tools/rea/out/
+
+# L4D2 assets (extracted on the player's machine from their own install, never shipped)
+*.vpk
+*.mdl
+*.vtx
+*.vvd
+*.phy
+*.ani
+*.vtf
+*.vmt
+*.smd
+*.qc
+*.wav
+*.mp3
+*.fbx
+*.blend
+*.blend1
+*.bundle
+*.assetbundle
+*.manifest
+extracted/
+assets-local/
+
+# Unity bundle-builder project: only Assets/Editor scripts and settings are tracked
+unity/*/Library/
+unity/*/Temp/
+unity/*/Logs/
+unity/*/obj/
+unity/*/UserSettings/
+unity/*/Assets/L4D2/
+unity/*/AssetBundles/
+
+# Local machine config
+Directory.Build.props.user
+*.user
+
+# .NET
+bin/
+obj/
+.vs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

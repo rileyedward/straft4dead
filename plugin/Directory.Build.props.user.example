@@ -1,0 +1,8 @@
+<Project>
+  <!-- Copy to Directory.Build.props.user (git-ignored) and adjust for your machine. -->
+  <PropertyGroup>
+    <StraftatDir>C:\Program Files (x86)\Steam\steamapps\common\STRAFTAT</StraftatDir>
+    <StraftatManaged>$(StraftatDir)\STRAFTAT_Data\Managed</StraftatManaged>
+    <BepInExDir>$(StraftatDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+</Project>
