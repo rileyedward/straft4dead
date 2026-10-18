@@ -17,6 +17,7 @@ namespace Straft4Dead
         internal static new ManualLogSource Logger;
 
         private PluginConfig _config;
+        private bool _phase0Started;
 
         private void Awake()
         {
@@ -28,6 +29,8 @@ namespace Straft4Dead
                 return;
 
             SceneManager.sceneLoaded += OnSceneLoaded;
+            // The chainloader starts after the first scene is already up, so handle it once here.
+            OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
         }
 
         private void OnDestroy()
@@ -37,6 +40,15 @@ namespace Straft4Dead
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            if (_config.Phase0AssetProof.Value && !_phase0Started && scene.name == "MainMenu")
+            {
+                _phase0Started = true;
+                var proof = new GameObject("S4D_Phase0Proof").AddComponent<Phase0.AssetProof>();
+                proof.BundlePath = _config.Phase0BundlePath.Value;
+                proof.VoicePath = _config.Phase0VoiceLine.Value;
+                proof.ScreenshotPath = System.IO.Path.Combine(Paths.BepInExRootPath, "s4d_phase0.png");
+            }
+
             if (!_config.LogDiagnostics.Value)
                 return;
 
