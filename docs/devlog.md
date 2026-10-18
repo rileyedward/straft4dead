@@ -1,5 +1,22 @@
 # Devlog
 
+## 2026-10-18 — Phase 0 (Recon), session 1, part 2: pipeline proof
+
+**Changed**
+- Installed (Riley's OK): BepInEx 5.4.23.5 in STRAFTAT, Blender 5.2.2 portable + SourceIO 5.5.4, Crowbar 0.74, Unity Hub (MSIX) + Unity 2021.3.45f2, UnityPy, py7zr.
+- Plugin loads in STRAFTAT; the game puts us in a separate matchmaking pool. Plugin now runs on its own persistent object (the BepInEx manager object never received `sceneLoaded`).
+- UnityPy scan: Aboubi third-person rig is Humanoid with humanoid clips; FP arms Generic; no NavMeshData anywhere; layer table recorded.
+- Full pipeline proven in game: infected (L4D2 run), Ellis (L4D2 collapse-to-incap), Ellis retargeted live from Aboubi, Ellis FP arms, Ellis voice line. See `docs/phase0-report.md`.
+
+**Broke / learned**
+- download.blender.org 403s winget; used the nluug mirror. Unity Hub's winget install is an MSIX app, not in Program Files. Unity batch mode needs Riley's signed-in Personal licence.
+- SourceIO's L4D2 `.ani` import produces broken poses; animations go through Crowbar SMDs instead. Unity's humanoid auto-mapper rejects ValveBiped; explicit map + enforced T-pose fixes it. SourceIO's default scale is the map scale (0.01905); characters need 0.0254. The commons import lying down. Exporting with an active action bakes that pose into Unity's bind pose.
+- Infected `Infected` shader isn't convertible: placeholder grey until Phase 3.
+
+**Next**
+- Stop here for Riley's check-in (Phase 0 boundary). Then Phase 1: placeholder zombie that chases, hits, dies; health multiplier.
+
+
 ## 2026-10-18 — Phase 0 (Recon), session 1
 
 **Changed**
