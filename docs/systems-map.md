@@ -16,14 +16,14 @@ Snapshot: dev PC, 2026-10-18. `Assembly-CSharp.dll` 1,093,632 bytes, SHA-256 `24
 | fact | value | evidence |
 |---|---|---|
 | Install path | `C:\Program Files (x86)\Steam\steamapps\common\STRAFTAT\` | [data] |
-| Unity version | **2021.3.45** (`UnityPlayer.dll` file version 2021.3.45.8976527) | [data] |
+| Unity version | **2021.3.45f2** (`Application.unityVersion` logged by the plugin; `UnityPlayer.dll` file version 2021.3.45.8976527). f2 is the Oct 2025 security patch of 2021.3.45, changeset `88f88f591b2e` | [data] + runtime log |
 | Scripting backend | **Mono** (`MonoBleedingEdge/`, `STRAFTAT_Data/Managed/*.dll`, no `GameAssembly.dll`) | [data] |
 | Render pipeline | Built-in renderer + Post Processing Stack v2 (`Unity.Postprocessing.Runtime`, `PlayerSetup.ChangeMotionBlur` → `PostProcessVolume.profile`). URP/HDRP runtime DLLs are not shipped | [data] + [IL] |
 | Asset storage | One 6.4 GB `data.unity3d` (compressed bundle-style container) plus `sharedassets*.resource` streams | [data] |
 | Developer | LemaitreBros (`app.info`) | [data] |
 | Key libraries | FishNet (networking), FishySteamworks transport (in `Assembly-CSharp-firstpass`), Heathen Steamworks, DOTween, Odin Serializer, TextMeshPro, new Input System, **Unity Animation Rigging**, Bakery, Easy Decal, ProBuilder | [data] |
 | JSON in-process | `Newtonsoft.Json.dll` ships with the game | [data] |
-| BepInEx | Not installed yet. BepInEx 5 (Mono, x64) is the right loader for 2021.3 Mono | [data] |
+| BepInEx | **BepInEx 5.4.23.5 (win x64) installed 2026-10-18 and loads the plugin** (`BepInEx\LogOutput.log`: `Straft 4 Dead 0.0.1 loaded`) | runtime log |
 | Supporter Edition | `Straftat_SupporterEdition/` contains the artbook and a text file linking the official **Character** and **Scenes** `.blend` packs | [data] |
 
 ## 2. Modding and matchmaking (read this first)
@@ -33,7 +33,7 @@ STRAFTAT ships its own mod-awareness: `ComputerysModdingUtilities.dll`.
 - `AssemblyScanner.GetForeignAssemblies` lists every loaded assembly that is not in `Managed/` and not BepInEx/Harmony/MonoMod/Cecil infrastructure. [IL]
 - `AssemblyScanner.CreateMatchMakingKey` drops assemblies whose `[StraftatMod]` attribute says `IsVanillaCompatible = true`, then SHA-256 hashes the rest (`name@version`) into `MatchMakingKey`. [IL]
 - `Assembly-CSharp` reads `MatchMakingKey` (3 call sites) and `ClientInstance.ReportModsToServer` / `ReceiveModsFromServer` log each client's mod list to the lobby. [IL]
-- **Consequence:** a plugin *without* the vanilla-compatible attribute changes the matchmaking key, so modded clients are kept away from vanilla public matchmaking automatically. [inferred from the hash flow; confirm in §12]
+- **Consequence:** a plugin *without* the vanilla-compatible attribute changes the matchmaking key, so modded clients are kept away from vanilla public matchmaking automatically. **Confirmed:** with the plugin loaded, `Player.log` prints `Incompatible assemblies found: Straft4Dead.Plugin, Version=0.0.1.0 …, Total: 1`.
 - **Rule for this repo:** never add `[StraftatMod(true)]` / `IsVanillaCompatible`. Multiplayer (Phase 8) goes through private Steam lobbies only.
 
 ## 3. Player object
@@ -107,8 +107,8 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 ## 7. NavMesh
 
 - No game code calls `NavMesh` or `NavMeshAgent` except an Easy Decal demo script (`ch.sycoforge.Decal.Demo.PathAgent`). [IL]
-- **So STRAFTAT maps almost certainly ship without baked NavMesh data.** [inferred] Zombies need a navmesh built at runtime from map geometry. Unity 2021.3 includes `NavMeshBuilder.BuildNavMeshData` in `UnityEngine.AIModule` (shipped), so a runtime bake per scene load is feasible without extra packages. [data]
-- The plugin's diagnostic logs navmesh vertex count per scene to confirm (§12).
+- **STRAFTAT maps ship without baked NavMesh data.** A UnityPy census of all 697,704 objects in `data.unity3d` finds **0 `NavMeshData`** (375 scenes each carry only the default `NavMeshSettings`). [data] Zombies need a navmesh built at runtime from map geometry. Unity 2021.3 includes `NavMeshBuilder.BuildNavMeshData` in `UnityEngine.AIModule` (shipped), so a runtime bake per scene load is feasible without extra packages. [data]
+- The plugin's `[diag]` log also prints the navmesh vertex count per scene as a runtime cross-check.
 
 ## 8. HUD
 
@@ -124,7 +124,13 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 - **Unity Animation Rigging** drives the hands: `PlayerPickup` has `RightHandIKTarget`, `LeftHandIKTarget`, `TargetForRightIK`, `TargetForLeftIK`, idle positions, and calls `RigBuilder.Build()` on every pickup, drop, switch and hand fix. [IL]
 - Ragdoll: `PlayerHealth.bodyParts[]`, `aboubiRagdoll`, `RagdollDress`; hit colliders named `Head_Col`, `Neck_1_Col`; bones include `Hips`. [IL]
 - First-person arms are a separate object set (`PlayerSetup.fpArms[]`, `fpArmsSuits[]`, `FPArms` sway script) with their own animator. [IL]
-- **Open, and decisive for retargeting:** whether the Aboubi `Avatar` is Humanoid or Generic, its bone list, and the animator controller's states. See §12.
+- **The third-person rig is Humanoid.** [data, `tools/unity/inspect_rig.py`]
+  - Avatars `SK_Aboubi_00Avatar` and `SK_Aboubi_01Avatar` (cosmetic variant): 18 of 25 body human bones mapped, both hands mapped, avatar scale 1.12, 48/51 transforms.
+  - Skeleton: `SK_Aboubi_00/Hips/{Leg.L,Leg.R}/Shin/Foot` and `Hips/Torso/{Neck/Head, Shoulder.L/R/Arm/ForeArm/Wrist}` with two-segment fingers (`Thumb/Index/MiddleFinger/RingFinger/Pinkie_1,_2`). One spine bone (`Torso`), no toes, no chest. Body meshes are split per part (`SM_Aboubi_Head00`, `SM_Aboubi00_Torso`, `SK_Aboubi00_Arm_*`, `_Hand_*`, `_Leg_*`), which is how dismemberment works.
+  - Every third-person clip is a **humanoid muscle clip** (130 Animator bindings, 0 Transform bindings): `Aboubi_Idle_00`, `Walk`, `Run`, `CrouchWalk`, `CrouchPose`, `Slide`, `Torso{Up,Down,Left,Right}_Pose`, `Gun_{Right,Left,Double,TwoHanded}`.
+  - Controller `SK_Aboubi_00`: 26 clips, layers include Base (locomotion blend trees, lean states, jump) and an `Arms` layer for gun holds; params as above plus `speed`.
+  - First-person arms are **Generic**: controller `PF_FPArm_Aboubi_00` (8 clips: `NoGun00`, `HoldGun_Right/Left/TwoHanded_00`, `Hold2Guns00`, `ReloadGun_TwoHanded_00`) uses Transform curves (68 bindings), and `Aboubi_IK_00` (5 clips) poses the IK targets.
+- **What that means for L4D2 survivors:** an Ellis body imported as Humanoid can be driven by STRAFTAT's own animation every frame by copying the human pose (`HumanPoseHandler.GetHumanPose` on Aboubi after IK in `LateUpdate`, `SetHumanPose` on Ellis). Ellis's ValveBiped skeleton has every required human bone. First-person arms can't use humanoid retargeting; they need bone-to-bone mapping onto the Aboubi FP arm rig or L4D2's own viewmodel animations.
 
 ## 10. Networking
 
@@ -149,12 +155,12 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 
 | # | question | check |
 |---|---|---|
-| Q1 | Is the Aboubi Avatar Humanoid? Bone names and hierarchy? | Read the Avatar / SkinnedMeshRenderer bones from `data.unity3d` with UnityPy, or open the Supporter Edition Character `.blend` |
+| Q1 | ~~Is the Aboubi Avatar Humanoid?~~ **Yes** (§9) | closed |
 | Q2 | Full health value on the player prefab (expect 4) | UnityPy: `PlayerHealth` MonoBehaviour on the player prefab |
-| Q3 | Any NavMeshData in scenes? | UnityPy asset type scan; plugin `[diag]` log per scene |
+| Q3 | ~~Any NavMeshData in scenes?~~ **None** (§7) | closed |
 | Q4 | HUD prefab hierarchy | UnityPy, or UnityExplorer at runtime |
-| Q5 | Does the matchmaking key really change with our plugin loaded? | Log `AssemblyScanner.MatchMakingKey` with and without the plugin |
-| Q6 | Layer numbers 10, 11, 14, 18, 19, 24 names | UnityPy `TagManager` in `globalgamemanagers` (inside `data.unity3d`) |
+| Q5 | ~~Does the matchmaking key change with our plugin loaded?~~ **Yes** (§2) | closed |
+| Q6 | ~~Layer names~~ closed: 3 Player, 6 Self, 7 Interactable, 8 HeldWeapon, 10 Ladder, **11 Body** (hit layer), 12 Members, 14 ShootThrough, 16 SelfBody, 18 DontCollideWithPlayer, 19 InteractEnvironment, 20 Grenade, 21 Melee, 23 Ragdoll, 24 Glass, 25 HUD, 27 InvisibleWall; **29–31 unused** (candidates for a zombie layer) | closed |
 | Q7 | What reads `PlayerHealth.tempHealth`? | REA field-access pass |
 | Q8 | Is there an offline/local mode we can launch without Steam lobbies? | Trace `nonSteamworksTransport` |
 
