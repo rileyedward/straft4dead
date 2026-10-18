@@ -39,6 +39,9 @@ unity/*/Logs/
 unity/*/obj/
 unity/*/UserSettings/
 unity/*/Assets/L4D2/
+unity/*/Assets/L4D2.meta
+unity/*/Assets/Resources/
+unity/*/Assets/Resources.meta
 unity/*/AssetBundles/
 
 # Local machine config
