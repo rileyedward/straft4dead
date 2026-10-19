@@ -50,7 +50,7 @@ Every step also runs without the window, which is how it's tested:
 
 ```bash
 Straft4Dead-Launcher.exe status
-Straft4Dead-Launcher.exe install [--zip Straft4Dead-0.8.0.zip]
+Straft4Dead-Launcher.exe install [--zip Straft4Dead-0.1.0.zip]
 Straft4Dead-Launcher.exe setup   [--zip <file>] [--unity <Unity.exe>]
 Straft4Dead-Launcher.exe build   [--force]
 Straft4Dead-Launcher.exe play    [--dry-run]

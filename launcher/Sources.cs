@@ -169,7 +169,7 @@ namespace Straft4Dead.Launcher
             return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
         }
 
-        /// <summary>"v0.8.0", "0.8.0" or "0.8" as a Version, or null.</summary>
+        /// <summary>"v0.1.0", "0.1.0" or "0.1" as a Version, or null.</summary>
         public static Version ParseVersion(string text)
         {
             if (string.IsNullOrEmpty(text)) return null;

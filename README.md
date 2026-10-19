@@ -193,7 +193,7 @@ Releases are built locally, because the plugin compiles against STRAFTAT's assem
 powershell -ExecutionPolicy Bypass -File tools\release\build-release.ps1 -Downloads
 ```
 
-This builds the plugin and the launcher and writes `dist\Straft4Dead-<version>.zip` (the plugin, the setup script, the asset pipeline and the bundle-builder project) and `dist\Straft4Dead-Launcher.exe`, each with a `.sha256` file, and copies all four to your Downloads folder with `-Downloads`. Attach them to a GitHub release tagged `v<version>`; the launcher installs the newest release.
+This builds the plugin and the launcher and writes `dist\Straft4Dead-<version>.zip` (the plugin, the setup script, the asset pipeline and the bundle-builder project) and `dist\Straft4Dead-Launcher.exe`, each with a `.sha256` file. It also writes the folder `dist\Straft4Dead v<version> release`: `upload\` holds exactly the four files to attach to a GitHub release tagged `v<version>`, and `release-notes.md` has the steps and the release description. `-Downloads` copies that folder to your Downloads folder. The launcher installs the newest release.
 
 ## Testing
 

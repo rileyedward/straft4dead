@@ -12,6 +12,8 @@
 - `setup.ps1` takes the portable Python and sets Crowbar's output folder itself; `set_cfg.py` creates the config if
   it's missing. The release script also builds the launcher and ships it with its `.sha256`.
 - README: launcher install, the Unity sign-in, a Playing with Friends walkthrough; `docs/launcher.md`.
+- Version set to 0.1.0 for the first public release. The release script writes a `Straft4Dead v<version> release`
+  folder (`upload\` with the 4 files, `release-notes.md`).
 
 ## 2026-10-19 — Phase 8 (Multiplayer) and Phase 9 (README)
 
