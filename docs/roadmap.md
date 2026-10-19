@@ -27,7 +27,7 @@ Finish and verify a phase before starting the next, then stop and check in. Loca
 | 5 | done 2026-10-19: opening horde each take, waves, stress-driven calm, map-size scaling (see devlog) |
 | 6 | done 2026-10-19: Tank, Boomer, Witch (see devlog; Witch sitting pose and Tank rock hit not yet seen) |
 | 7 | done 2026-10-19: F9 panel (mode switch, survivor, host zombie settings), live toggles, `tools/setup/setup.ps1` |
-| 8 | **paused by Riley: start in a fresh session together** (see devlog handoff) |
-| 9 | **paused by Riley: start together after Phase 8** (see devlog handoff) |
+| 8 | done 2026-10-19: host → client sync, per-player survivors, 2v2 revives, zombie strength; tested with two copies on one PC, Steam test with a friend pending |
+| 9 | done 2026-10-19: README in the ValRally / How to Steve format, release script |
 
 Details live in `docs/devlog.md`.

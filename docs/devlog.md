@@ -1,44 +1,42 @@
 # Devlog
 
-## Handoff for Phase 8 (multiplayer) and Phase 9 (README) — 2026-10-19
+## 2026-10-19 — Phase 8 (Multiplayer) and Phase 9 (README)
 
-Riley asked to stop here and start Phase 8 in a fresh session together, then Phase 9 the same way. Nothing of
-Phase 8 or 9 has been started.
+**Changed**
+- `NetSync`: Straft 4 Dead over STRAFTAT's own FishNet session. One broadcast type (`S4DPacket`) with a hand-registered
+  serializer (the plugin isn't run through FishNet's code generator) carries our own small binary messages.
+  - Host → clients: infected spawns (with each common's look), a 10 Hz position/animation stream, sounds, hurt and
+    death, despawn/clear, Tank rocks, horde music, the Witch's startle, each player's own health for their HUD, voice
+    lines, bile, the survivor map and who is down.
+  - Clients → host: hello (with their survivor), weapon hits on infected, pills, medkit, revive key.
+  - Clients show puppets: the same `Zombie`/specials classes without AI or navmesh, following the stream.
+- Each player shows as their own survivor everywhere (bodies and ragdolls); STRAFTAT cosmetics on the hidden Aboubi
+  are hidden too.
+- 2v2 revives (`Revives`): in team games an incap lasts `TeamIncapSeconds` (L4D2's 300 incap health draining; hits
+  while down drain it faster); a teammate holding `ReviveKey` for `ReviveSeconds` gets you up with 30 temporary health.
+- Zombie strength (`[Zombies] Strength`, default 2, F9 panel): commons and the Tank hit twice as hard as L4D2 normal,
+  so getting cornered by a horde takes you down in a couple of seconds.
+- Dev LAN mode (`DevNet`, only with `--s4d-lan host|client` on the command line): Tugboat instead of Steam so two copies
+  on one PC can play together; `tools/dev/make_client_instance.ps1` builds the second copy, `tools/dev/lan_test.sh`
+  runs both, `AutoTestMode=lan` drives the host side.
+- README rewritten in the ValRally / How to Steve format; `tools/release/build-release.ps1` builds the release zip.
 
-**Where things are**
-- Phases 0–7 done; all commits local on `main` (Riley pushes). Code under `plugin/src`, pipeline under `tools/`,
-  bundle builders under `unity/S4DBundles/Assets/Editor`. Extracted assets and bundles live outside the repo in
-  `C:\Users\Riley\source\straft4dead-research` (`bundles/`, `hud/`, `fbx/`, `crowbar/`).
-- Everything runs **host-side and local**: zombies, specials, the director, `SurvivorHealth` and incap only run where
-  `InstanceFinder.IsServer`; zombies are plain local GameObjects (no NetworkObject). Survivor arms/bodies/voice and
-  the HUD are per client and use the local `[HUD] Survivor` for every player.
-- Testing is solo in exploration mode via `[Dev] AutoTest` + `AutoTestMode` (zombies, health, arms, director,
-  specials, panel, maps). Switching maps inside one exploration lobby doesn't work (HK_02 never loaded); test a
-  map per launch with `[Dev] TestMap`.
+**Verified (two copies on this PC, `AutoTestMode=lan`)**
+- The client joins the host's map, sees the horde and specials as puppets (close-up shows animated, textured
+  commons), and shows the host as Ellis while the host shows the client as Rochelle.
+- Damage, bile (green screen + horde), voice lines (hurt, biled, incap, thanks, incoming, warn_boomer) and the HUD's
+  health reach the client. A 2v2 down lasts, the host revives the client in 4 s, the client is back at 1+29.
+- Single player unchanged (zombie self-test still kills with a weapon hit).
 
-**Phase 8 plan to discuss (nothing decided yet)**
-1. Private lobbies only: keep the separate matchmaking key (plugin not `StraftatMod(vanillaCompatible)`); refuse to
-   run the mode in public matchmaking.
-2. Sync zombies host → clients. Options: (a) FishNet NetworkObjects spawned by the host (needs prefabs registered
-   with the NetworkManager at runtime), or (b) our own lightweight state messages (id, position, yaw, anim state,
-   death) over FishNet broadcasts, with clients spawning local visual zombies. (b) avoids touching STRAFTAT's
-   prefab list; (a) gets interpolation for free.
-3. Client hits on zombies: today `WeaponPatches` applies damage locally; clients must send hits to the host.
-4. Damage to players already uses the synced `PlayerHealth.health`, so it replicates; check `SurvivorHealth`
-   temp health / medkits / pills (server-side state) reach clients' HUDs (needs a sync).
-5. Survivor choice per player (sync each player's `Survivor`, so bodies/voices differ), host zombie settings apply
-   to everyone (the F9 panel already labels them "host").
-6. 2v2 revives: incapped teammate can be helped up (hold E, 5 s) instead of bleeding out.
-7. Known gap to check in MP: the third-person gun stays on the hidden Aboubi hand, so it may sit off the survivor's.
+**Broke / learned**
+- STRAFTAT forces a single instance with a mutex named after the exe path; a second copy in another folder runs.
+- SteamLobby drives `FishySteamworks` directly and SceneMotor loads a lone player's map only for the host; LAN mode
+  forwards those calls to Tugboat and loads the map as a global scene. STRAFTAT reads SteamIDs from connection
+  addresses, so Tugboat addresses are faked as SteamIDs.
+- PlayerSetup disables remote players' `PlayerHealth` component on each machine: "alive" must not check `enabled`
+  (zombies were ignoring remote players).
 
-**Phase 9 (README)**: model it on github.com/rileyedward/valrally and rileyedward/how-to-steve using Riley's
-README-writing skill. That skill wasn't available to the Phase 7 session; ask Riley where it is.
-
-**Open items from Phases 5–7**
-- Witch rendered standing in the close-up although `Idle_Sitting` data is a sitting pose; check the Witch clips.
-- A Tank rock hit hasn't been seen in a test (the Tank closed in too fast to throw).
-- Explosives still don't hurt zombies; zombies don't climb between navmesh surfaces.
-- The setup script still needs Unity (free licence) and Crowbar's output folder set once by hand.
+**Not yet tested**: a real game with a friend over Steam (Riley will do it after setting up the GitHub repo).
 
 ## 2026-10-19 — Phases 5, 6, 7 (Director, specials, panel and setup)
 

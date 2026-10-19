@@ -58,3 +58,6 @@ obj/
 Thumbs.db
 .idea/
 .vscode/
+
+# Release output
+dist/
