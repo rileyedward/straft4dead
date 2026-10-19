@@ -61,3 +61,4 @@ Thumbs.db
 
 # Release output
 dist/
+!launcher/app.manifest
