@@ -21,8 +21,22 @@ namespace Straft4Dead
         public ConfigEntry<float> ZombieAttackInterval { get; }
         public ConfigEntry<float> WeaponDamageToZombies { get; }
         public ConfigEntry<float> PlayerHealthMultiplier { get; }
+        public ConfigEntry<bool> IncapEnabled { get; }
+        public ConfigEntry<float> IncapSeconds { get; }
+        public ConfigEntry<float> TempHealthDecay { get; }
+        public ConfigEntry<int> StartMedkits { get; }
+        public ConfigEntry<int> StartPills { get; }
+        public ConfigEntry<float> MedkitSeconds { get; }
+        public ConfigEntry<string> PillsKey { get; }
+        public ConfigEntry<string> MedkitKey { get; }
+
+        public ConfigEntry<bool> HudEnabled { get; }
+        public ConfigEntry<string> HudTextureDir { get; }
+        public ConfigEntry<string> L4D2SoundDir { get; }
+        public ConfigEntry<string> SurvivorName { get; }
 
         public ConfigEntry<bool> DevAutoTest { get; }
+        public ConfigEntry<string> DevAutoTestMode { get; }
         public ConfigEntry<string> DevTestMap { get; }
         public ConfigEntry<float> DevScreenshotDelay { get; }
         public ConfigEntry<bool> DevDrawNavMesh { get; }
@@ -50,9 +64,23 @@ namespace Straft4Dead
             ZombieReach = file.Bind("Zombies", "Reach", 1.5f, "Swing reach in metres.");
             ZombieAttackInterval = file.Bind("Zombies", "AttackInterval", 1f, "Seconds between swings.");
             WeaponDamageToZombies = file.Bind("Zombies", "WeaponDamageMultiplier", 1f, "Scales STRAFTAT weapon damage against zombies (1 = a default body shot does 25 HP).");
-            PlayerHealthMultiplier = file.Bind("Players", "HealthMultiplier", 1f, "Scales every player's health when they spawn (host only). 2 = twice the health against bullets and zombies.");
+            PlayerHealthMultiplier = file.Bind("Players", "HealthMultiplier", 1f, "Scales every player's health when they spawn (host only). 2 = 200 HP against bullets and zombies.");
+            IncapEnabled = file.Bind("Players", "Incap", true, "At 0 HP go down for a few seconds (L4D2 incap: camera drop, red screen, sting) before the take ends.");
+            IncapSeconds = file.Bind("Players", "IncapSeconds", 3f, "How long the incap lasts before the take ends.");
+            TempHealthDecay = file.Bind("Players", "TempHealthDecay", 0.27f, "Temporary (pill) health lost per second (L4D2: 0.27).");
+            StartMedkits = file.Bind("Players", "StartMedkits", 1, "First aid kits each player spawns with.");
+            StartPills = file.Bind("Players", "StartPills", 1, "Pain pills each player spawns with.");
+            MedkitSeconds = file.Bind("Players", "MedkitSeconds", 5f, "Hold time to heal with a first aid kit (L4D2: 5).");
+            PillsKey = file.Bind("Players", "PillsKey", "5", "Key to take pain pills (+50 temporary health). Unity Input System key name.");
+            MedkitKey = file.Bind("Players", "MedkitKey", "4", "Hold to heal with a first aid kit (80% of missing health). Unity Input System key name.");
+
+            HudEnabled = file.Bind("HUD", "Enabled", true, "Replace STRAFTAT's health and ammo display with the L4D2 survivor HUD.");
+            HudTextureDir = file.Bind("HUD", "TextureDir", "", "Folder with the L4D2 HUD textures converted to PNG (healthbar_*, s_panel_*, inventory_*). Extracted from your own L4D2 install.");
+            L4D2SoundDir = file.Bind("HUD", "L4D2SoundDir", @"C:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2\left4dead2\sound", "Your L4D2 install's loose sound folder (incap sting).");
+            SurvivorName = file.Bind("HUD", "Survivor", "mechanic", "Which survivor portrait to show: mechanic (Ellis), gambler (Nick), producer (Rochelle), coach.");
 
             DevAutoTest = file.Bind("Dev", "AutoTest", false, "Test run without input: from the main menu enter Dev.TestMap in exploration mode, check a weapon hit on a zombie, save screenshots.");
+            DevAutoTestMode = file.Bind("Dev", "AutoTestMode", "zombies", "AutoTest script: zombies (Phase 1: spawn, chase, weapon hit) or health (Phase 2: damage, pills, medkit, incap).");
             DevTestMap = file.Bind("Dev", "TestMap", "", "Scene name for F8 / AutoTest (the plugin logs all scene names at startup).");
             DevDrawNavMesh = file.Bind("Dev", "DrawNavMesh", false, "Draw the baked navmesh in cyan.");
             DevScreenshotDelay = file.Bind("Dev", "ScreenshotDelay", 12f, "AutoTest: seconds to wait before each screenshot.");

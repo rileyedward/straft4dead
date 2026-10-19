@@ -13,7 +13,6 @@ namespace Straft4Dead.Zombies
         private static readonly List<PlayerHealth> Players = new List<PlayerHealth>();
         private static float _nextPlayerScan;
 
-        private readonly HashSet<int> _scaled = new HashSet<int>();
         private float _nextSpawn;
         private bool _ready;
 
@@ -64,7 +63,8 @@ namespace Straft4Dead.Zombies
             if (!GameAccess.IsServer)
                 return;
             RefreshPlayers();
-            ApplyHealthMultiplier(cfg.PlayerHealthMultiplier.Value);
+            foreach (var p in Players)
+                Survivors.SurvivorHealth.For(p); // L4D2 health rules, incl. the health multiplier
 
             if (!_ready || !cfg.ZombiesEnabled.Value || Time.time < _nextSpawn)
                 return;
@@ -122,19 +122,5 @@ namespace Straft4Dead.Zombies
                 Plugin.Logger.LogWarning("[zombies] " + why);
         }
 
-        private void ApplyHealthMultiplier(float multiplier)
-        {
-            foreach (var p in Players)
-            {
-                if (p == null || !GameAccess.IsAlive(p))
-                    continue;
-                int key = p.GetInstanceID() * 31 + (int)p.sync___get_value_spawnGeneration();
-                if (!_scaled.Add(key))
-                    continue;
-                float before = GameAccess.ToL4D2(p.sync___get_value_health());
-                float after = Mathf.Approximately(multiplier, 1f) ? before : GameAccess.ScaleHealth(p, multiplier);
-                Plugin.Logger.LogInfo($"[zombies] player {p.transform.root.name} spawned with {p.sync___get_value_health():F2} units ({before:F0} HP), x{multiplier} -> {after:F0} HP");
-            }
-        }
     }
 }

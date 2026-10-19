@@ -35,6 +35,7 @@ namespace Straft4Dead
             DontDestroyOnLoad(runtime);
             runtime.AddComponent<Runtime>();
             runtime.AddComponent<Dev.DevTools>();
+            runtime.AddComponent<Hud.L4D2Hud>();
             Dev.DevTools.LogMapScenes();
         }
     }

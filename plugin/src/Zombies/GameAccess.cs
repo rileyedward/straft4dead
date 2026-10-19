@@ -16,7 +16,8 @@ namespace Straft4Dead.Zombies
         internal static bool IsServer => InstanceFinder.IsServer;
 
         internal static bool IsAlive(PlayerHealth p) =>
-            p != null && p.isActiveAndEnabled && !p.sync___get_value_isKilled() && p.sync___get_value_health() > 0f;
+            p != null && p.isActiveAndEnabled && !p.sync___get_value_isKilled() && p.sync___get_value_health() > 0f &&
+            !(p.GetComponent<Survivors.SurvivorHealth>()?.Incapacitated ?? false);
 
         /// <summary>Server-side damage through the game's own RemoveHealth logic (syncs health, plays hit feedback).
         /// Death and the end of the take then run through PlayerHealth.Update as for any other death.</summary>
@@ -29,12 +30,5 @@ namespace Straft4Dead.Zombies
             Plugin.Logger.LogInfo($"[zombies] {source} hit {p.transform.root.name} for {l4d2Hp:F0} HP: {ToL4D2(before):F0} -> {ToL4D2(p.sync___get_value_health()):F0}");
         }
 
-        /// <summary>Scales a freshly spawned player's health (server only). Returns the new value in L4D2 HP.</summary>
-        internal static float ScaleHealth(PlayerHealth p, float multiplier)
-        {
-            float h = p.sync___get_value_health() * multiplier;
-            p.sync___set_value_health(h, true);
-            return ToL4D2(h);
-        }
     }
 }

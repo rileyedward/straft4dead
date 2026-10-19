@@ -43,7 +43,7 @@ namespace Straft4Dead.Dev
             else if (scene.name == cfg.DevTestMap.Value && !_selfTested)
             {
                 _selfTested = true;
-                StartCoroutine(SelfTest());
+                StartCoroutine(Plugin.Settings.DevAutoTestMode.Value == "health" ? HealthTest() : SelfTest());
             }
         }
 
@@ -85,6 +85,61 @@ namespace Straft4Dead.Dev
             File.WriteAllBytes(path, tex.EncodeToPNG());
             Destroy(cam.gameObject); Destroy(rt); Destroy(tex);
             Plugin.Logger.LogInfo($"[dev] top-down shot of {b.size.x:F0}x{b.size.z:F0} m -> {path}");
+        }
+
+        /// <summary>Phase 2 test: walk the local survivor through damage, pills, a medkit and an incap, with a screenshot
+        /// at each step. Run it with [Zombies] Enabled = false so nothing else changes the numbers.</summary>
+        private IEnumerator HealthTest()
+        {
+            string dir = BepInEx.Paths.BepInExRootPath;
+            Survivors.SurvivorHealth me = null;
+            for (int i = 0; i < 40 && (me = Survivors.SurvivorHealth.Local) == null; i++)
+                yield return new WaitForSeconds(0.5f);
+            if (me == null)
+            {
+                Plugin.Logger.LogWarning("[dev] health test: no local survivor");
+                yield break;
+            }
+            yield return new WaitForSeconds(4f);
+            void Log(string step) => Plugin.Logger.LogInfo($"[dev] health test {step}: perm {me.Permanent:F1} temp {me.Temporary:F1} game {GameAccess.ToL4D2(me.Player.sync___get_value_health()):F1} medkits {me.Medkits} pills {me.Pills} incap {me.Incapacitated}");
+            Log("start");
+            ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_a_full.png"));
+            yield return new WaitForSeconds(1f);
+
+            GameAccess.DamagePlayer(me.Player, 70f, "test");
+            yield return new WaitForSeconds(0.5f);
+            Log("after 70 damage");
+            me.TakePills();
+            yield return new WaitForSeconds(1f);
+            Log("after pills");
+            ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_b_pills.png"));
+            yield return new WaitForSeconds(0.5f);
+
+            GameAccess.DamagePlayer(me.Player, 20f, "test");
+            yield return new WaitForSeconds(0.5f);
+            Log("after 20 damage (temp first)");
+
+            float t0 = Time.time;
+            while (Time.time - t0 < Plugin.Settings.MedkitSeconds.Value + 0.5f)
+            {
+                me.SetHealing(true);
+                if (Time.time - t0 > 2.5f && Time.time - t0 < 2.6f)
+                    ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_c_healing.png"));
+                yield return null;
+            }
+            me.SetHealing(false);
+            Log("after medkit");
+            yield return new WaitForSeconds(0.5f);
+            ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_d_healed.png"));
+            yield return new WaitForSeconds(0.5f);
+
+            GameAccess.DamagePlayer(me.Player, 500f, "test");
+            yield return new WaitForSeconds(1.2f);
+            Log("after lethal damage");
+            ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_e_incap.png"));
+            yield return new WaitForSeconds(Plugin.Settings.IncapSeconds.Value + 1.5f);
+            Plugin.Logger.LogInfo($"[dev] health test end: player killed={me != null && me.Player != null && me.Player.sync___get_value_isKilled()}");
+            ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_f_after.png"));
         }
 
         /// <summary>Wait for zombies to close in, screenshot, then fire a real weapon's hit path at one to prove the
