@@ -21,7 +21,7 @@ CLIPS = {
     "Flinch": "Shoved_Backward_01", "Death": "Death_01", "DeathRunning": "DeathRunning_01",
 }
 
-l4d2, work, blender = sys.argv[1], sys.argv[2], sys.argv[3]
+l4d2, work, blender = sys.argv[1], os.path.abspath(sys.argv[2]), sys.argv[3]  # Blender resolves relative paths elsewhere
 extracted = os.path.join(work, "extracted", "l4d2")
 vpk = os.path.join(l4d2, "pak01_dir.vpk")
 

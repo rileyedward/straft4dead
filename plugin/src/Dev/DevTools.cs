@@ -43,7 +43,8 @@ namespace Straft4Dead.Dev
             else if (scene.name == cfg.DevTestMap.Value && !_selfTested)
             {
                 _selfTested = true;
-                StartCoroutine(Plugin.Settings.DevAutoTestMode.Value == "health" ? HealthTest() : SelfTest());
+                var mode = Plugin.Settings.DevAutoTestMode.Value;
+                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : SelfTest());
             }
         }
 
@@ -165,6 +166,95 @@ namespace Straft4Dead.Dev
             Plugin.Logger.LogInfo($"[dev] health test end: player killed={me != null && me.Player != null && me.Player.sync___get_value_isKilled()}");
             ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_f_after.png"));
         }
+
+        /// <summary>Phase 4 recon and test: dump the local player's first-person arms rig (hierarchy, bones, renderers,
+        /// the camera that draws them) to the log, then screenshot what the player sees.</summary>
+        private IEnumerator ArmsTest()
+        {
+            string dir = BepInEx.Paths.BepInExRootPath;
+            PlayerSetup setup = null;
+            for (int i = 0; i < 40 && setup == null; i++)
+            {
+                var fpc = FirstPersonController.instance;
+                if (fpc != null) setup = fpc.GetComponentInParent<PlayerSetup>() ?? fpc.GetComponentInChildren<PlayerSetup>();
+                if (setup == null) yield return new WaitForSeconds(0.5f);
+            }
+            if (setup == null) { Plugin.Logger.LogWarning("[dev] arms test: no local PlayerSetup"); yield break; }
+            yield return new WaitForSeconds(3f);
+            var arms = HarmonyLib.Traverse.Create(setup).Field("fpArms").GetValue<GameObject[]>() ?? new GameObject[0];
+            var suits = HarmonyLib.Traverse.Create(setup).Field("fpArmsSuits").GetValue<GameObject[]>() ?? new GameObject[0];
+            Plugin.Logger.LogInfo($"[dev] arms: fpArms [{string.Join(", ", arms.Select(a => a ? a.name + (a.activeInHierarchy ? "*" : "") : "null"))}] suits [{string.Join(", ", suits.Select(a => a ? a.name + (a.activeInHierarchy ? "*" : "") : "null"))}]");
+            foreach (var fa in FindObjectsOfType<FPArms>())
+                Plugin.Logger.LogInfo($"[dev] arms: FPArms on {TPath(fa.transform)} animator {(fa.GetComponentInChildren<Animator>() ? fa.GetComponentInChildren<Animator>().runtimeAnimatorController?.name : "none")}");
+            var roots = arms.Where(a => a).Select(a => a.transform).ToList();
+            foreach (var fa in FindObjectsOfType<FPArms>()) if (!roots.Contains(fa.transform)) roots.Add(fa.transform);
+            foreach (var root in roots)
+            {
+                Plugin.Logger.LogInfo($"[dev] arms tree {TPath(root)}:");
+                foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                    Plugin.Logger.LogInfo($"[dev]   {Depth(t, root)}{t.name} L{t.gameObject.layer} {(t.gameObject.activeInHierarchy ? "" : "(off) ")}lp {t.localPosition:F3} lr {t.localEulerAngles:F0} ls {t.localScale:F2} wp {t.position:F3}");
+                foreach (var r in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                    Plugin.Logger.LogInfo($"[dev]   SMR {r.name} on={r.enabled && r.gameObject.activeInHierarchy} mats [{string.Join(", ", r.sharedMaterials.Select(m => m ? m.name + "/" + m.shader.name : "null"))}] root {r.rootBone?.name} bones [{string.Join(", ", r.bones.Select(b => b ? b.name : "null"))}]");
+                foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+                    Plugin.Logger.LogInfo($"[dev]   MR {r.name} on={r.enabled && r.gameObject.activeInHierarchy}");
+            }
+            foreach (var cam in FindObjectsOfType<Camera>())
+                Plugin.Logger.LogInfo($"[dev] camera {TPath(cam.transform)} depth {cam.depth} mask {cam.cullingMask:X} fov {cam.fieldOfView:F0} near {cam.nearClipPlane}");
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase4_arms.png"));
+            yield return new WaitForSeconds(1f);
+            var sa = FindObjectOfType<Survivors.SurvivorArms>();
+            var fpCam = FindObjectsOfType<Camera>().FirstOrDefault(c => c.name == "WeaponCam");
+            if (sa != null && fpCam != null)
+            {
+                // Same view as the weapon camera but pulled back and wider, so the hanging arms are in frame.
+                foreach (var (original, file) in new[] { (true, "s4d_phase4_arms_straftat.png"), (false, "s4d_phase4_arms_l4d2.png") })
+                {
+                    sa.ShowOriginal(original);
+                    var cam = new GameObject("S4D_ArmsCam").AddComponent<Camera>();
+                    cam.CopyFrom(fpCam);
+                    cam.clearFlags = CameraClearFlags.SolidColor;
+                    cam.backgroundColor = new Color(0.25f, 0.27f, 0.3f);
+                    cam.transform.position = fpCam.transform.position - fpCam.transform.forward * 1.2f + fpCam.transform.up * 0.3f;
+                    cam.transform.LookAt(sa.HandsCenter);
+                    cam.fieldOfView = 70f;
+                    var rt = new RenderTexture(1280, 720, 24);
+                    cam.targetTexture = rt;
+                    cam.Render();
+                    RenderTexture.active = rt;
+                    var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+                    tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                    RenderTexture.active = null;
+                    File.WriteAllBytes(System.IO.Path.Combine(dir, file), tex.EncodeToPNG());
+                    Destroy(cam.gameObject); Destroy(rt); Destroy(tex);
+                }
+                sa.ShowOriginal(false);
+                Plugin.Logger.LogInfo("[dev] arms test: comparison renders written");
+            }
+
+            // Hold a gun: put a weapon lying in the map in front of the camera and let PlayerPickup grab it.
+            var pickup = setup.GetComponentInChildren<PlayerPickup>() ?? setup.GetComponentInParent<PlayerPickup>();
+            var gun = FindObjectsOfType<Weapon>().Where(w => w.gameObject.scene.IsValid() && !(w is MeleeWeapon))
+                .OrderBy(w => Vector3.Distance(w.transform.position, setup.transform.position)).FirstOrDefault();
+            var view = fpCam != null ? fpCam.transform.parent : null;
+            Plugin.Logger.LogInfo($"[dev] arms test: pickup {(pickup ? "ok" : "none")}, nearest map weapon {(gun ? gun.name : "none")}");
+            if (pickup != null && gun != null && view != null)
+            {
+                var rb = gun.GetComponent<Rigidbody>();
+                if (rb) { rb.velocity = Vector3.zero; rb.isKinematic = true; }
+                gun.transform.position = view.position + view.forward * 1.2f;
+                yield return new WaitForFixedUpdate();
+                yield return new WaitForFixedUpdate();
+                HarmonyLib.Traverse.Create(pickup).Method("RightHandPickup").GetValue();
+                yield return new WaitForSeconds(2f);
+                Plugin.Logger.LogInfo($"[dev] arms test: holding {HarmonyLib.Traverse.Create(pickup).Field("weaponInHand").GetValue<Weapon>()?.name ?? "nothing"}");
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase4_arms_gun.png"));
+                yield return new WaitForSeconds(1f);
+            }
+            Plugin.Logger.LogInfo("[dev] arms test: screenshot s4d_phase4_arms.png");
+        }
+
+        private static string TPath(Transform t) => t.parent == null ? t.name : TPath(t.parent) + "/" + t.name;
+        private static string Depth(Transform t, Transform root) { int d = 0; for (var p = t; p != root && p != null; p = p.parent) d++; return new string(' ', d * 2); }
 
         /// <summary>Wait for zombies to close in, screenshot, then fire a real weapon's hit path at one to prove the
         /// damage hook (Weapon.TriggerEnvironment), and screenshot again.</summary>

@@ -37,6 +37,7 @@ namespace Straft4Dead
             runtime.AddComponent<Dev.DevTools>();
             runtime.AddComponent<Hud.L4D2Hud>();
             runtime.AddComponent<Zombies.InfectedAssets>();
+            runtime.AddComponent<Survivors.SurvivorAssets>();
             Dev.DevTools.LogMapScenes();
         }
     }
@@ -56,6 +57,16 @@ namespace Straft4Dead
             var active = SceneManager.GetActiveScene();
             if (active.isLoaded && !string.IsNullOrEmpty(active.name))
                 OnSceneLoaded(active, LoadSceneMode.Single);
+        }
+
+        private float _nextSurvivorScan;
+
+        private void Update()
+        {
+            // Players (and their first-person arms) spawn per take; look for new ones once a second.
+            if (Time.unscaledTime < _nextSurvivorScan || !Plugin.Settings.Enabled.Value) return;
+            _nextSurvivorScan = Time.unscaledTime + 1f;
+            Survivors.SurvivorArms.AttachAll();
         }
 
         private void OnDestroy()

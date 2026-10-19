@@ -36,6 +36,11 @@ namespace Straft4Dead
         public ConfigEntry<string> L4D2SoundDir { get; }
         public ConfigEntry<string> SurvivorName { get; }
 
+        public ConfigEntry<string> SurvivorBundle { get; }
+        public ConfigEntry<bool> SurvivorArms { get; }
+        public ConfigEntry<bool> SurvivorBodies { get; }
+        public ConfigEntry<bool> SurvivorVoice { get; }
+
         public ConfigEntry<bool> DevAutoTest { get; }
         public ConfigEntry<string> DevAutoTestMode { get; }
         public ConfigEntry<string> DevTestMap { get; }
@@ -79,10 +84,15 @@ namespace Straft4Dead
             HudEnabled = file.Bind("HUD", "Enabled", true, "Replace STRAFTAT's health and ammo display with the L4D2 survivor HUD.");
             HudTextureDir = file.Bind("HUD", "TextureDir", "", "Folder with the L4D2 HUD textures converted to PNG (healthbar_*, s_panel_*, inventory_*). Extracted from your own L4D2 install.");
             L4D2SoundDir = file.Bind("HUD", "L4D2SoundDir", @"C:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2\left4dead2\sound", "Your L4D2 install's loose sound folder (incap sting).");
-            SurvivorName = file.Bind("HUD", "Survivor", "mechanic", "Which survivor portrait to show: mechanic (Ellis), gambler (Nick), producer (Rochelle), coach.");
+            SurvivorName = file.Bind("HUD", "Survivor", "mechanic", "Which survivor you play (portrait, arms, body, voice): mechanic (Ellis), gambler (Nick), producer (Rochelle), coach.");
+
+            SurvivorBundle = file.Bind("Survivors", "Bundle", "", "Full path to the s4d_survivors AssetBundle (L4D2 survivors built from your install). Empty or missing: STRAFTAT's own character.");
+            SurvivorArms = file.Bind("Survivors", "Arms", true, "Show the survivor's L4D2 first-person arms instead of STRAFTAT's.");
+            SurvivorBodies = file.Bind("Survivors", "Bodies", true, "Show players as L4D2 survivor bodies in third person.");
+            SurvivorVoice = file.Bind("Survivors", "Voice", true, "Survivor voice lines (hurt, incap, healing, kills).");
 
             DevAutoTest = file.Bind("Dev", "AutoTest", false, "Test run without input: from the main menu enter Dev.TestMap in exploration mode, check a weapon hit on a zombie, save screenshots.");
-            DevAutoTestMode = file.Bind("Dev", "AutoTestMode", "zombies", "AutoTest script: zombies (Phase 1: spawn, chase, weapon hit) or health (Phase 2: damage, pills, medkit, incap).");
+            DevAutoTestMode = file.Bind("Dev", "AutoTestMode", "zombies", "AutoTest script: zombies (Phase 1: spawn, chase, weapon hit) health (Phase 2: damage, pills, medkit, incap) or arms (Phase 4: dump the arm rig, screenshot the survivor arms).");
             DevTestMap = file.Bind("Dev", "TestMap", "", "Scene name for F8 / AutoTest (the plugin logs all scene names at startup).");
             DevDrawNavMesh = file.Bind("Dev", "DrawNavMesh", false, "Draw the baked navmesh in cyan.");
             DevScreenshotDelay = file.Bind("Dev", "ScreenshotDelay", 12f, "AutoTest: seconds to wait before each screenshot.");
