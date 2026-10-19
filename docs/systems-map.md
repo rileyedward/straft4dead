@@ -116,7 +116,8 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 - In-game HUD is uGUI + TextMeshPro, owned per player: `PlayerSetup.hudObject`, `HUD`, `HUDTween`, `HealthTween` (heart icon + number, colour lerp), `Crosshair`, `CrosshairThing`, `MatchPoitnsHUD`, `KillCam` (spectate text, enemy HP). [IL]
 - `PauseManager` owns shared HUD pieces: ammo counters (`rightGunAmmo`, `leftGunAmmo`, reload variants), interact prompts, round start banners, `enemyHealthText`, `deadText`, `minimalistUi` (`minimalistHealthText`, FPS, ping). [IL]
 - `PlayerSetup.HideHUD(bool)` is the game's own switch. [IL]
-- **Replacement plan (Phase 2):** hide via `HideHUD(true)` / disabling `hudObject`, then draw the L4D2 HUD on our own Screen Space Overlay canvas reading `PlayerHealth.health` and the held `Weapon.currentAmmo`.
+- **The visible in-game HUD is 3D**: `PlayerIK(Clone)/…/Camera/UICam/Transform/TransformDown/SM_HUD_00` with children `SM_Heart_00` (heart + `hEALTHtext`, the `HealthTween`), `SM_BulletCounter_L_00` / `_R_00` (ammo rings), `SM_FPS_Counter_00`, `SM_MatchPoints_00`; `SM_HUD_00` itself renders the frame. [runtime]
+- **Phase 2 replacement:** hide `SM_Heart_00`, both bullet counters and the frame renderer; draw the L4D2 HUD on our own overlay canvas from `PlayerHealth.health` (split into permanent/temp by `SurvivorHealth`) and the held weapons' `currentAmmo` (`PlayerPickup.weaponInHand` / `weaponInLeftHand`, private). [runtime]
 
 ## 9. Player animator and rig
 
@@ -148,8 +149,8 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 | Zombies take weapon damage | prefix `Weapon.TriggerEnvironment` (all hitscan guns), postfix `MeleeWeapon.Fire` | 1 (done) |
 | Zombies hurt players | `PlayerHealth.RpcLogic___RemoveHealth_431000436` on the server (syncs health, plays hit feedback) | 1 (done) |
 | Health multiplier | scale `health` via `sync___set_value_health` once per spawn generation | 1 (done) |
-| Incap before take ends | prefix `PlayerHealth.Update` death branch | 2 |
-| HUD swap | `PlayerSetup.HideHUD`, `PlayerSetup.hudObject` | 2 |
+| Incap before take ends | prefix on `PlayerHealth.sync___set_value_health`: hold health at a sliver for the incap, then write 0 | 2 (done) |
+| HUD swap | hide `SM_HUD_00` parts, own overlay canvas | 2 (done) |
 | Take/round pacing | `PauseManager.OnRoundStarted`, `OnBeforeSpawn`; `ScoreManager.TakeIndex` | 5 |
 | Survivor body | `PlayerSetup.ChangeDress` / `meshesToChange`, the player `Animator` | 4 |
 

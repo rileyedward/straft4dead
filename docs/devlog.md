@@ -1,5 +1,23 @@
 # Devlog
 
+## 2026-10-19 — Phase 2 (L4D2 HUD and health, incap then take ends)
+
+**Changed**
+- Health: STRAFTAT's single synced value is split into permanent + temporary HP and kept equal to their sum, so guns, death and the take flow are untouched. Damage eats temp first; temp decays 0.27 HP/s; pills (key 5) +50 temp; first aid kit (hold 4 for 5 s) heals 80% of missing health and clears temp; each spawn gets 1 kit + 1 pills. `[Players]` config.
+- Incap: a health write that would reach 0 starts a 3 s incap (health held at a sliver so guns don't run their kill code); camera drops 1.1 m and rolls, movement locks, red screen, L4D2's incap sting (`music/tags/clingingtohellhit1.wav`), portrait swaps to the incap one; then health goes to 0 and STRAFTAT's own death ends the take. Void/suicide still kill instantly.
+- HUD: L4D2 survivor panel bottom-left (Ellis portrait, health number, green/orange/red bar with striped temp health), kit/pills slots, ammo bottom-right, kit progress bar, low-health pulse. STRAFTAT's 3D heart and ammo counters (`SM_HUD_00`) are hidden; FPS counter and match points stay. Textures load at runtime from `[HUD] TextureDir` (PNG converted from the local L4D2 install, `straft4dead-research\hud`).
+
+**Verified in game (Arena_00, AutoTestMode=health)**
+- 100 → 70 damage → 30; pills → 30 + 50 temp (striped); 20 damage → temp 29.5 (temp first); kit → 86 (30 + 80% of 70), temp cleared; 500 damage → incap 3 s (screenshots: camera down, red screen, incap portrait) → bled out → death → respawn.
+
+**Broke / learned**
+- STRAFTAT's HUD is 3D meshes under the UI camera, not uGUI; an early "climb to the canvas" helper disabled the whole player object.
+- Not tested: a PvP gun kill going through incap (needs a second player), and the sting's audio (loaded, not heard).
+
+**Next**
+- Riley's check-in, then Phase 3 (real common infected: models, animations, sounds).
+
+
 ## 2026-10-18 — Phase 1 (Hello zombie)
 
 **Changed**
