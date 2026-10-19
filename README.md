@@ -201,6 +201,8 @@ To test multiplayer on one PC, build a second copy of the game with `tools\dev\m
 
 ## Data and Licensing
 
+Straft 4 Dead is released under the [MIT License](LICENSE).
+
 Straft 4 Dead contains no Left 4 Dead 2 or STRAFTAT code or assets. Models, animations, sounds and HUD art are converted at setup from the player's own Left 4 Dead 2 install and loaded at runtime; they are never committed or redistributed. STRAFTAT's internals in [docs/systems-map.md](docs/systems-map.md) were mapped from assembly metadata and reading the game's code locally; no decompiled code is included.
 
 Built with [BepInEx](https://github.com/BepInEx/BepInEx) (LGPL-2.1) and [Harmony](https://github.com/pardeike/Harmony) (MIT), which are installed separately and not included in the release. The asset setup uses [SourceIO](https://github.com/REDxEYE/SourceIO), [Crowbar](https://steamcommunity.com/groups/CrowbarTool) and Unity, which are installed separately.
