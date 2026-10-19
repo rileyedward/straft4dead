@@ -30,10 +30,7 @@ namespace Straft4Dead.Zombies
             settings.agentClimb = 0.45f;
             settings.agentSlope = 50f;
 
-            // Environment only: skip players, held weapons, ragdolls and UI (layer names from systems-map Q6).
-            int mask = ~(LayerBit("Player") | LayerBit("Self") | LayerBit("HeldWeapon") | LayerBit("OtherHeldWeapon") | LayerBit("Body") |
-                         LayerBit("Members") | LayerBit("SelfBody") | LayerBit("Ragdoll") | LayerBit("UI") | LayerBit("HUD") |
-                         LayerBit("PauseMenuHUD") | LayerBit("Water") | LayerBit("NewGun") | LayerBit("HeadSup") | LayerBit("Interactable"));
+            int mask = EnvironmentMask;
 
             if (!MapBounds(map, mask, out var bounds))
                 return 0;
@@ -66,6 +63,12 @@ namespace Straft4Dead.Zombies
         }
 
         /// <summary>Bounds of the map's static environment colliders (the menu scene can still be loaded alongside).</summary>
+        /// <summary>Environment only: skip players, held weapons, ragdolls and UI (layer names from systems-map Q6).</summary>
+        internal static int EnvironmentMask =>
+            ~(LayerBit("Player") | LayerBit("Self") | LayerBit("HeldWeapon") | LayerBit("OtherHeldWeapon") | LayerBit("Body") |
+              LayerBit("Members") | LayerBit("SelfBody") | LayerBit("Ragdoll") | LayerBit("UI") | LayerBit("HUD") |
+              LayerBit("PauseMenuHUD") | LayerBit("Water") | LayerBit("NewGun") | LayerBit("HeadSup") | LayerBit("Interactable"));
+
         private static bool MapBounds(Scene map, int mask, out Bounds bounds)
         {
             bounds = default;

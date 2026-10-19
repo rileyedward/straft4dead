@@ -86,6 +86,7 @@ namespace Straft4Dead.Survivors
                 Permanent = Mathf.Max(0f, Permanent - (dmg - fromTemp));
                 _healStart = -1f; // taking damage interrupts healing
                 SurvivorVoice.Hurt(this, dmg);
+                Zombies.ZombieDirector.OnSurvivorHurt(dmg);
             }
             else if (delta > 0.001f)
                 Permanent = Mathf.Min(Max, Permanent + delta);
@@ -168,6 +169,7 @@ namespace Straft4Dead.Survivors
             Temporary = 0f;
             _lastGameHp = 0.01f;
             SurvivorVoice.Say(this, "incap", interrupt: true);
+            Zombies.ZombieDirector.OnSurvivorIncap();
             Plugin.Logger.LogInfo($"[health] {Player.transform.root.name} incapacitated for {Plugin.Settings.IncapSeconds.Value:F1} s");
         }
 

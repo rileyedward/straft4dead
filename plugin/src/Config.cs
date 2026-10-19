@@ -36,6 +36,16 @@ namespace Straft4Dead
         public ConfigEntry<string> L4D2SoundDir { get; }
         public ConfigEntry<string> SurvivorName { get; }
 
+        public ConfigEntry<bool> DirectorEnabled { get; }
+        public ConfigEntry<int> Wanderers { get; }
+        public ConfigEntry<int> HordeSize { get; }
+        public ConfigEntry<float> FirstHorde { get; }
+        public ConfigEntry<float> HordeIntervalMin { get; }
+        public ConfigEntry<float> HordeIntervalMax { get; }
+        public ConfigEntry<float> RelaxSeconds { get; }
+        public ConfigEntry<bool> ClearOnNewTake { get; }
+        public ConfigEntry<bool> HordeMusic { get; }
+
         public ConfigEntry<string> SurvivorBundle { get; }
         public ConfigEntry<bool> SurvivorArms { get; }
         public ConfigEntry<bool> SurvivorBodies { get; }
@@ -60,7 +70,7 @@ namespace Straft4Dead
 
             // Health and damage are in L4D2 HP: 100 = one full STRAFTAT health bar (4 game units).
             ZombiesEnabled = file.Bind("Zombies", "Enabled", true, "Spawn placeholder zombies on maps (host only, local single-player for now).");
-            MaxAlive = file.Bind("Zombies", "MaxAlive", 8, "Most zombies alive at once.");
+            MaxAlive = file.Bind("Zombies", "MaxAlive", 30, "Most zombies alive at once, wanderers and hordes together.");
             SpawnInterval = file.Bind("Zombies", "SpawnInterval", 2f, "Seconds between spawn attempts while under MaxAlive.");
             SpawnMinDistance = file.Bind("Zombies", "SpawnMinDistance", 10f, "Closest a zombie spawns to a player (metres).");
             SpawnMaxDistance = file.Bind("Zombies", "SpawnMaxDistance", 35f, "Farthest a zombie spawns from a player (metres).");
@@ -85,6 +95,16 @@ namespace Straft4Dead
             HudTextureDir = file.Bind("HUD", "TextureDir", "", "Folder with the L4D2 HUD textures converted to PNG (healthbar_*, s_panel_*, inventory_*). Extracted from your own L4D2 install.");
             L4D2SoundDir = file.Bind("HUD", "L4D2SoundDir", @"C:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2\left4dead2\sound", "Your L4D2 install's loose sound folder (incap sting).");
             SurvivorName = file.Bind("HUD", "Survivor", "mechanic", "Which survivor you play (portrait, arms, body, voice): mechanic (Ellis), gambler (Nick), producer (Rochelle), coach.");
+
+            DirectorEnabled = file.Bind("Director", "Enabled", true, "L4D2-style pacing: wanderers build up, a horde hits, then a calm spell; survivor stress (damage, close kills, incaps) brings the calm on early. Off: a constant trickle up to MaxAlive.");
+            Wanderers = file.Bind("Director", "Wanderers", 8, "Wandering commons kept on the map during build-up. They chase once they see or hear you, get shot, or a neighbour does.");
+            HordeSize = file.Bind("Director", "HordeSize", 20, "Commons in a horde (L4D2 mobs are 10-30).");
+            FirstHorde = file.Bind("Director", "FirstHorde", 30f, "Seconds into a take before the first horde.");
+            HordeIntervalMin = file.Bind("Director", "HordeIntervalMin", 60f, "Shortest gap between hordes (seconds of build-up).");
+            HordeIntervalMax = file.Bind("Director", "HordeIntervalMax", 100f, "Longest gap between hordes.");
+            RelaxSeconds = file.Bind("Director", "RelaxSeconds", 20f, "Calm after a peak: no new zombies for this long (and until stress drops).");
+            ClearOnNewTake = file.Bind("Director", "ClearOnNewTake", true, "Remove every zombie when a new take starts (everyone respawned).");
+            HordeMusic = file.Bind("Director", "HordeMusic", true, "Play L4D2's horde stinger and drums during a horde.");
 
             SurvivorBundle = file.Bind("Survivors", "Bundle", "", "Full path to the s4d_survivors AssetBundle (L4D2 survivors built from your install). Empty or missing: STRAFTAT's own character.");
             SurvivorArms = file.Bind("Survivors", "Arms", true, "Show the survivor's L4D2 first-person arms instead of STRAFTAT's.");

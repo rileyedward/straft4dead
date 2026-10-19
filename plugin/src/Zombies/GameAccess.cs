@@ -26,7 +26,10 @@ namespace Straft4Dead.Zombies
             if (!IsServer || !IsAlive(p))
                 return;
             float before = p.sync___get_value_health();
-            p.RpcLogic___RemoveHealth_431000436(ToGame(l4d2Hp));
+            // Write the synced value directly rather than RemoveHealth: that also fires STRAFTAT's PvP hit feedback
+            // (a full-screen red flash), which a horde clawing at you every second turns into a solid red screen.
+            // A write that reaches zero still goes through HealthPatches (incap) and the game's death.
+            p.sync___set_value_health(before - ToGame(l4d2Hp), true);
             Plugin.Logger.LogInfo($"[zombies] {source} hit {p.transform.root.name} for {l4d2Hp:F0} HP: {ToL4D2(before):F0} -> {ToL4D2(p.sync___get_value_health()):F0}");
         }
 

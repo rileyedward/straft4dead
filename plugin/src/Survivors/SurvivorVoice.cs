@@ -27,6 +27,7 @@ namespace Straft4Dead.Survivors
             { "firstaid", new[] { "painrelieftfirstaid" } },
             { "kill", new[] { "killconfirmation" } },
             { "laugh", new[] { "laughter", "hurrah" } },
+            { "incoming", new[] { "incoming" } },
         };
 
         private readonly Dictionary<string, List<AudioClip>> _lines = new Dictionary<string, List<AudioClip>>();

@@ -22,6 +22,7 @@ namespace Straft4Dead.Hud
         private readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
         private Canvas _canvas;
         private RectTransform _panel, _barFill, _barTemp, _healBar, _healFill;
+        private float _lastTotal, _hurtFlash;
         private Image _barFillImg, _portrait, _medkitIcon, _pillsIcon, _redOverlay;
         private Text _healthText, _ammoText, _incapText, _medkitCount, _pillsCount;
         private Font _font;
@@ -168,7 +169,11 @@ namespace Straft4Dead.Hud
             // Incap: portrait swap, red screen, camera drop, sting, movement lock.
             _portrait.sprite = S("s_panel_" + Plugin.Settings.SurvivorName.Value + (me.Incapacitated ? "_incap" : "")) ?? _portrait.sprite;
             float lowHp = !me.Incapacitated && total < 25f * max / 100f ? 0.12f + 0.06f * Mathf.Sin(Time.time * 6f) : 0f;
-            _redOverlay.color = new Color(0.55f, 0f, 0f, me.Incapacitated ? 0.35f + 0.25f * me.IncapProgress : lowHp);
+            // A faint flash per hit (zombie hits skip STRAFTAT's full-screen hit feedback, see GameAccess.DamagePlayer).
+            if (total < _lastTotal - 0.5f) _hurtFlash = 0.16f;
+            _lastTotal = total;
+            _hurtFlash = Mathf.Max(0f, _hurtFlash - Time.deltaTime * 0.4f);
+            _redOverlay.color = new Color(0.55f, 0f, 0f, me.Incapacitated ? 0.35f + 0.25f * me.IncapProgress : Mathf.Max(lowHp, _hurtFlash));
             _incapText.text = me.Incapacitated ? "YOU'RE INCAPACITATED" : "";
             IncapView(me);
         }

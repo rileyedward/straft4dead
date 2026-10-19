@@ -44,7 +44,7 @@ namespace Straft4Dead.Dev
             {
                 _selfTested = true;
                 var mode = Plugin.Settings.DevAutoTestMode.Value;
-                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : SelfTest());
+                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : SelfTest());
             }
         }
 
@@ -180,6 +180,38 @@ namespace Straft4Dead.Dev
             Survivors.SurvivorBody.ForceVisible = false;
             Plugin.Logger.LogInfo($"[dev] health test end: player killed={me != null && me.Player != null && me.Player.sync___get_value_isKilled()}");
             ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_f_after.png"));
+        }
+
+        /// <summary>Phase 5 test: stand still and let the director run (wanderers, a horde, the calm, a new take after
+        /// the survivor goes down), logging its state every few seconds with screenshots during the horde.</summary>
+        private IEnumerator DirectorTest()
+        {
+            string dir = BepInEx.Paths.BepInExRootPath;
+            bool shot = false;
+            for (float t = 0f; t < 120f; t += 3f)
+            {
+                // Stand in for a player fighting back: anything that gets within a few metres dies.
+                for (int k = 0; k < 6; k++)
+                {
+                    yield return new WaitForSeconds(0.5f);
+                    var me = Survivors.SurvivorHealth.Local;
+                    if (me == null) continue;
+                    foreach (var z in FindObjectsOfType<Zombie>().Where(z => !z.IsDead && (z.transform.position - me.Player.transform.position).sqrMagnitude < 3.5f * 3.5f))
+                        z.TakeDamage(100f, z.transform.position, z.transform.position - me.Player.transform.position, false);
+                }
+                var d = ZombieDirector.Instance;
+                if (d == null) continue;
+                var zs = FindObjectsOfType<Zombie>().Where(z => !z.IsDead).ToList();
+                Plugin.Logger.LogInfo($"[dev] director t={t + 3f:F0}s: {d.State}, stress {d.Stress:F2}, next horde {d.NextHordeIn:F0}s, alive {zs.Count} (alerted {zs.Count(z => z.Alerted)}, horde {zs.Count(z => z.Horde)}), kills {ZombieDirector.Kills}");
+                if (!shot && d.State == ZombieDirector.Phase.Horde && zs.Count(z => z.Horde) >= 10)
+                {
+                    shot = true;
+                    yield return new WaitForSeconds(2f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase5_horde.png"));
+                    OverheadShot(System.IO.Path.Combine(dir, "s4d_phase5_horde_top.png"));
+                }
+            }
+            Plugin.Logger.LogInfo("[dev] director test end");
         }
 
         /// <summary>Phase 4 recon and test: dump the local player's first-person arms rig (hierarchy, bones, renderers,

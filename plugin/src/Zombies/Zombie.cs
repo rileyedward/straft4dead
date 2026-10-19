@@ -26,10 +26,15 @@ namespace Straft4Dead.Zombies
         private PlayerHealth _target;
         private bool _dead, _chasing;
         private string _state;
+        private float _runSpeed, _nextAlertCheck, _nextWander;
 
         internal bool IsDead => _dead;
+        /// <summary>Chasing survivors. Wanderers shamble about until they see or hear a survivor, get hit, or a
+        /// neighbour alerts them; horde zombies spawn alerted.</summary>
+        internal bool Alerted { get; private set; }
+        internal bool Horde { get; set; }
 
-        internal static Zombie Create(Vector3 position)
+        internal static Zombie Create(Vector3 position, bool alerted = true)
         {
             var root = new GameObject("S4D_Zombie") { layer = Layer };
             root.transform.position = position;
@@ -89,7 +94,9 @@ namespace Straft4Dead.Zombies
             z._agent = root.AddComponent<NavMeshAgent>();
             z._agent.radius = 0.35f;
             z._agent.height = 1.8f;
-            z._agent.speed = Plugin.Settings.ZombieSpeed.Value * Random.Range(0.9f, 1.1f);
+            z._runSpeed = Plugin.Settings.ZombieSpeed.Value * Random.Range(0.9f, 1.1f);
+            z._agent.speed = alerted ? z._runSpeed : WanderSpeed;
+            z.Alerted = alerted;
             z._agent.acceleration = 40f;
             z._agent.angularSpeed = 720f;
             z._agent.stoppingDistance = 0.9f;
@@ -97,6 +104,58 @@ namespace Straft4Dead.Zombies
             z._health = Plugin.Settings.ZombieHealth.Value;
             Alive++;
             return z;
+        }
+
+        private const float WanderSpeed = 1.2f;
+        private const float AlertDistance = 12f;   // sees a survivor in the open
+        private const float HearDistance = 4f;     // notices a survivor right next to it, line of sight or not
+        private const float ShoutDistance = 7f;    // an alerted common sets off its neighbours
+
+        /// <summary>Start chasing (and, like L4D2 commons, set off the wanderers around us).</summary>
+        internal void Alert(bool spread = true)
+        {
+            if (_dead || Alerted) return;
+            Alerted = true;
+            _agent.speed = _runSpeed;
+            _chasing = false;
+            if (!spread) return;
+            foreach (var other in FindObjectsOfType<Zombie>())
+                if (other != this && !other.Alerted && (other.transform.position - transform.position).sqrMagnitude < ShoutDistance * ShoutDistance)
+                    other.StartCoroutine(other.AlertAfter(Random.Range(0.2f, 0.8f)));
+        }
+
+        private System.Collections.IEnumerator AlertAfter(float seconds)
+        {
+            yield return new WaitForSeconds(seconds);
+            Alert();
+        }
+
+        private void Wander()
+        {
+            if (Time.time >= _nextAlertCheck)
+            {
+                _nextAlertCheck = Time.time + 0.25f;
+                var p = ZombieDirector.NearestLivingPlayer(transform.position);
+                if (p != null)
+                {
+                    Vector3 eye = transform.position + Vector3.up * 1.6f, to = p.transform.position + Vector3.up * 1.2f - eye;
+                    float d = to.magnitude;
+                    // Line of sight: only the static map blocks it (Default-layer colliders like us are ignored by
+                    // starting the ray outside our own capsule).
+                    bool seen = d < AlertDistance && !Physics.Raycast(eye + to.normalized * 0.4f, to.normalized, d - 0.8f, ZombieDirector.SightMask, QueryTriggerInteraction.Ignore);
+                    if (d < HearDistance || seen) { Alert(); return; }
+                }
+            }
+            if (Time.time >= _nextWander)
+            {
+                _nextWander = Time.time + Random.Range(4f, 10f);
+                if (Random.value < 0.4f) _agent.ResetPath(); // stand around
+                else if (NavMesh.SamplePosition(transform.position + Random.insideUnitSphere * 6f, out var hit, 3f, NavMesh.AllAreas))
+                    _agent.SetDestination(hit.position);
+            }
+            if (Time.time >= _flinchUntil)
+                Play(_agent.velocity.magnitude > 0.3f ? "Walk" : "Idle", 0.3f);
+            Ambient("idle");
         }
 
         /// <summary>L4D2 commons ship every head and body variant in one model; show one of each.</summary>
@@ -130,6 +189,7 @@ namespace Straft4Dead.Zombies
             if (_dead)
                 return false;
             _health -= hp;
+            Alert();
             Plugin.Logger.LogInfo($"[zombies] {name} hit for {hp:F0} HP{(headshot ? " (head)" : "")}, {Mathf.Max(0f, _health):F0} left");
             if (_health > 0f)
             {
@@ -167,7 +227,7 @@ namespace Straft4Dead.Zombies
                 transform.Rotate(axis, 85f, Space.World);
             }
             Destroy(gameObject, 6f);
-            ZombieDirector.Kills++;
+            ZombieDirector.OnZombieKilled(transform.position);
             Survivors.SurvivorVoice.Kill();
             Plugin.Logger.LogInfo($"[zombies] {name} died (kills this map: {ZombieDirector.Kills})");
         }
@@ -182,6 +242,11 @@ namespace Straft4Dead.Zombies
         {
             if (_dead || !_agent.isOnNavMesh)
                 return;
+            if (!Alerted)
+            {
+                Wander();
+                return;
+            }
 
             if (_target == null || !GameAccess.IsAlive(_target) || Time.time >= _nextRepath)
             {
