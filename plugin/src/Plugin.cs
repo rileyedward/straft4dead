@@ -1,5 +1,6 @@
 using BepInEx;
 using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
@@ -28,9 +29,13 @@ namespace Straft4Dead
 
             // The BepInEx manager object doesn't survive STRAFTAT's startup (sceneLoaded never reached it), so
             // everything runs on our own persistent, hidden object instead of this component.
+            new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll(typeof(Plugin).Assembly);
+
             var runtime = new GameObject("Straft4Dead.Runtime") { hideFlags = HideFlags.HideAndDontSave };
             DontDestroyOnLoad(runtime);
             runtime.AddComponent<Runtime>();
+            runtime.AddComponent<Dev.DevTools>();
+            Dev.DevTools.LogMapScenes();
         }
     }
 
@@ -60,6 +65,15 @@ namespace Straft4Dead
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             var cfg = Plugin.Settings;
+            GetComponent<Dev.DevTools>().OnSceneLoaded(scene);
+
+            // A map: anything but the menu and the victory screen (SceneMotor's scene names).
+            if (scene.name != "MainMenu" && scene.name != "VictoryScene" && !string.IsNullOrEmpty(scene.name))
+            {
+                var dir = new GameObject("S4D_ZombieDirector");
+                SceneManager.MoveGameObjectToScene(dir, scene); // dies with the map
+                dir.AddComponent<Zombies.ZombieDirector>();
+            }
             if (cfg.Phase0AssetProof.Value && !_phase0Started && scene.name == "MainMenu")
             {
                 _phase0Started = true;
