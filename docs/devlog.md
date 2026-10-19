@@ -1,5 +1,14 @@
 # Devlog
 
+## 2026-10-19 — Launcher 0.1.1: Unity step
+
+**Changed**
+- Unity Hub's installer URL moved (`UnityHubSetup.exe` is a 404, now `UnityHubSetup-x64.exe`). The launcher installs
+  Unity 2021.3.45f2 itself from Unity's official installer (3.2 GB, silent, one Windows permission prompt) instead of
+  the Hub deep link, and only opens or installs the Hub for the free licence. It finds the Microsoft Store Hub, editors
+  under `%USERPROFILE%\Unity\Editors` and the installer's registry entry, accepts the licensing client's licence file,
+  and carries on by itself once Unity is installed and licensed.
+
 ## 2026-10-19 — Phase 7 launcher
 
 **Changed**
