@@ -38,6 +38,7 @@ namespace Straft4Dead.Survivors
         private AudioSource _source;
         private float _busyUntil;
         private int _killsSinceLine;
+        private string _loadedFor;
 
         private void Awake()
         {
@@ -45,8 +46,17 @@ namespace Straft4Dead.Survivors
             _source = gameObject.AddComponent<AudioSource>();
             _source.spatialBlend = 0f; // your own voice: 2D
             _source.volume = 0.9f;
-            if (Plugin.Settings.SurvivorVoice.Value)
-                StartCoroutine(Load(Plugin.Settings.SurvivorName.Value));
+            EnsureLoaded();
+        }
+
+        /// <summary>(Re)load the lines when voice is on and the survivor changed (host panel).</summary>
+        private void EnsureLoaded()
+        {
+            string who = Plugin.Settings.SurvivorName.Value;
+            if (!Plugin.Settings.SurvivorVoice.Value || _loadedFor == who) return;
+            _loadedFor = who;
+            _lines.Clear();
+            StartCoroutine(Load(who));
         }
 
         private IEnumerator Load(string survivor)
@@ -77,7 +87,8 @@ namespace Straft4Dead.Survivors
         internal static void Say(SurvivorHealth who, string concept, bool interrupt = false, float chance = 1f)
         {
             var v = Instance;
-            if (v == null || !Plugin.Settings.SurvivorVoice.Value || who == null || who != SurvivorHealth.Local) return;
+            if (v == null || !Plugin.Settings.SurvivorVoice.Value || !Plugin.Settings.Enabled.Value || who == null || who != SurvivorHealth.Local) return;
+            v.EnsureLoaded();
             if ((!interrupt && Time.time < v._busyUntil) || Random.value > chance) return;
             if (!v._lines.TryGetValue(concept, out var list) || list.Count == 0) return;
             var clip = list[Random.Range(0, list.Count)];

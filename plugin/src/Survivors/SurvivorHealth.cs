@@ -62,7 +62,7 @@ namespace Straft4Dead.Survivors
 
         private void Update()
         {
-            if (Player == null || !GameAccess.IsServer)
+            if (Player == null || !GameAccess.IsServer || !Plugin.Settings.Enabled.Value)
                 return;
 
             uint gen = Player.sync___get_value_spawnGeneration();

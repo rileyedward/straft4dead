@@ -1,5 +1,77 @@
 # Devlog
 
+## Handoff for Phase 8 (multiplayer) and Phase 9 (README) — 2026-10-19
+
+Riley asked to stop here and start Phase 8 in a fresh session together, then Phase 9 the same way. Nothing of
+Phase 8 or 9 has been started.
+
+**Where things are**
+- Phases 0–7 done; all commits local on `main` (Riley pushes). Code under `plugin/src`, pipeline under `tools/`,
+  bundle builders under `unity/S4DBundles/Assets/Editor`. Extracted assets and bundles live outside the repo in
+  `C:\Users\Riley\source\straft4dead-research` (`bundles/`, `hud/`, `fbx/`, `crowbar/`).
+- Everything runs **host-side and local**: zombies, specials, the director, `SurvivorHealth` and incap only run where
+  `InstanceFinder.IsServer`; zombies are plain local GameObjects (no NetworkObject). Survivor arms/bodies/voice and
+  the HUD are per client and use the local `[HUD] Survivor` for every player.
+- Testing is solo in exploration mode via `[Dev] AutoTest` + `AutoTestMode` (zombies, health, arms, director,
+  specials, panel, maps). Switching maps inside one exploration lobby doesn't work (HK_02 never loaded); test a
+  map per launch with `[Dev] TestMap`.
+
+**Phase 8 plan to discuss (nothing decided yet)**
+1. Private lobbies only: keep the separate matchmaking key (plugin not `StraftatMod(vanillaCompatible)`); refuse to
+   run the mode in public matchmaking.
+2. Sync zombies host → clients. Options: (a) FishNet NetworkObjects spawned by the host (needs prefabs registered
+   with the NetworkManager at runtime), or (b) our own lightweight state messages (id, position, yaw, anim state,
+   death) over FishNet broadcasts, with clients spawning local visual zombies. (b) avoids touching STRAFTAT's
+   prefab list; (a) gets interpolation for free.
+3. Client hits on zombies: today `WeaponPatches` applies damage locally; clients must send hits to the host.
+4. Damage to players already uses the synced `PlayerHealth.health`, so it replicates; check `SurvivorHealth`
+   temp health / medkits / pills (server-side state) reach clients' HUDs (needs a sync).
+5. Survivor choice per player (sync each player's `Survivor`, so bodies/voices differ), host zombie settings apply
+   to everyone (the F9 panel already labels them "host").
+6. 2v2 revives: incapped teammate can be helped up (hold E, 5 s) instead of bleeding out.
+7. Known gap to check in MP: the third-person gun stays on the hidden Aboubi hand, so it may sit off the survivor's.
+
+**Phase 9 (README)**: model it on github.com/rileyedward/valrally and rileyedward/how-to-steve using Riley's
+README-writing skill. That skill wasn't available to the Phase 7 session; ask Riley where it is.
+
+**Open items from Phases 5–7**
+- Witch rendered standing in the close-up although `Idle_Sitting` data is a sitting pose; check the Witch clips.
+- A Tank rock hit hasn't been seen in a test (the Tank closed in too fast to throw).
+- Explosives still don't hurt zombies; zombies don't climb between navmesh surfaces.
+- The setup script still needs Unity (free licence) and Crowbar's output folder set once by hand.
+
+## 2026-10-19 — Phases 5, 6, 7 (Director, specials, panel and setup)
+
+**Changed**
+- Director-lite (`ZombieDirector`): every take opens with a horde storming in (`FirstHorde` 2 s, spawned at once
+  from one direction with L4D2's mob stinger, zombat drums and an "incoming" line), then if the take lasts:
+  build-up (wanderers that shamble until they see/hear you, get shot, or a neighbour alerts them) → next wave
+  (40–60 s) → relax (10 s, and until stress drops). Stress = damage taken, close kills, incaps. New takes clear the
+  map. Wanderer and horde counts scale with walkable area (`FullSizeArea` 1500 m²: Arena_00 gets 8, bigger maps
+  12). Huge maps bake only `MaxBakeSize` 140 m around the spawn points.
+- Guns do 4× damage to zombies (`WeaponDamageMultiplier`): everything one-shots a common except Phoenix, Kusma,
+  Yangtse and Mac10 (two). Zombie hits write health directly, so STRAFTAT's PvP hit flash no longer paints the
+  screen red during a horde; the HUD gives a faint flash instead.
+- Specials (`build_specials.py` + `S4DSpecialBuilder` → `s4d_specials`; `Specials.cs`): Tank (1000 HP, punches
+  24, throws rocks at range, its own music), Boomer (vomit → green screen + horde called onto you, bursts into bile
+  on death), Witch (cries; rage builds when you're close or on a shot, then charges and incaps in one hit, flees).
+  Survivors call them out. All on the shared `IInfected` damage path.
+- Phase 7: F9 panel (`HostPanel`) with the mode switch, survivor pick, and the host's zombie settings; switching the
+  mode or a part of it off applies live (STRAFTAT's HUD, arms and bodies come back, zombies are cleared, L4D2
+  health rules stop). `tools/setup/setup.ps1` builds every asset from the player's own L4D2 install and writes the
+  config; the main menu says when assets are missing. `build_hud.py` makes the HUD textures.
+
+**Verified in game (AutoTest)**: director cycle on Arena_00, Chateaux_01 and Backrooms_00; specials spawn, act,
+take weapon hits and die; bile horde; panel: mode off → vanilla HUD and Aboubi, on as Coach → Coach's arms,
+body, portrait.
+
+**Broke / learned**
+- The opening horde never came on Backrooms_00: no reachable floor in the 15–35 m ring and stress hit the peak
+  first. The horde now widens its search and the opening horde ignores stress.
+- Babbdi's full-map bake ran for minutes → `MaxBakeSize`.
+- Re-showing STRAFTAT's HUD must only restore what we hid (the minimalist health text is off in vanilla).
+
+
 ## 2026-10-19 — Phase 4 (Survivors: arms, bodies, voice)
 
 **Changed**

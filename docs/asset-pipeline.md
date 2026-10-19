@@ -127,3 +127,17 @@ Unity.exe -batchmode -quit -projectPath unity\S4DBundles -executeMethod S4DSurvi
 ## HUD textures (Phase 2, portraits added in Phase 4)
 
 `[HUD] TextureDir` holds PNGs converted from `materials/vgui/` with `vtf_to_png.py`: `healthbar_*`, `inventory_*`, `s_panel_*` (including `s_panel_<survivor>` and `s_panel_<survivor>_incap` for all four survivors).
+
+## Special infected (Phase 6)
+
+`build_specials.py` (needs `anim_hulk`, `anim_boomer`, `anim_witch` decompiled by Crowbar into
+`<work>\crowbar\anim_<model>_anims`) → `S4DSpecialBuilder.Build` → `s4d_specials` (`[Specials] Bundle`).
+Same setup as the commons: raw Generic rigs on `S4D_Armature`, clips baked in place, Standard materials (hair cut out).
+Sounds load from the install at runtime (`SoundBank`: player/tank, player/boomer, npc/witch, music/tank, music/witch).
+
+## One-command setup (Phase 7)
+
+`tools\setup\setup.ps1 -L4D2 <L4D2 dir> -Straftat <STRAFTAT dir> -Work <asset dir> -Blender <blender.exe>
+-Crowbar <Crowbar.exe> -Unity <Unity.exe>` runs every step above (skipping finished ones, `-Force` to redo) and
+writes the bundle, HUD and sound paths into the mod's config. Close STRAFTAT first. Crowbar's output folder must be
+set to `<Work>\crowbar` once by hand.

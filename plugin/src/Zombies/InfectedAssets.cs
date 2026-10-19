@@ -14,6 +14,7 @@ namespace Straft4Dead.Zombies
     {
         internal static InfectedAssets Instance;
         internal readonly List<GameObject> Outfits = new List<GameObject>();
+        internal bool Loaded { get; private set; }
         private readonly Dictionary<string, GameObject> _specials = new Dictionary<string, GameObject>();
 
         /// <summary>Special_&lt;model&gt; from the s4d_specials bundle (hulk, boomer, witch), or null.</summary>
@@ -61,6 +62,7 @@ namespace Straft4Dead.Zombies
                         _specials[g.name] = g;
             }
             Plugin.Logger.LogInfo($"[infected] specials from '{specialsPath}': {string.Join(", ", _specials.Keys)}");
+            Loaded = true;
 
             string root = Path.Combine(Plugin.Settings.L4D2SoundDir.Value, "npc", "infected");
             int total = 0;

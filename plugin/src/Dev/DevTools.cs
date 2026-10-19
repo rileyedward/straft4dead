@@ -44,7 +44,7 @@ namespace Straft4Dead.Dev
             {
                 _selfTested = true;
                 var mode = Plugin.Settings.DevAutoTestMode.Value;
-                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : mode == "specials" ? SpecialsTest() : SelfTest());
+                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : mode == "specials" ? SpecialsTest() : mode == "panel" ? PanelTest() : SelfTest());
             }
         }
 
@@ -227,6 +227,38 @@ namespace Straft4Dead.Dev
                 Plugin.Logger.LogInfo("[sweep] " + line.Replace('\t', ' '));
             }
             Plugin.Logger.LogInfo("[sweep] done");
+        }
+
+        /// <summary>Phase 7 test: open the panel, switch the mode off and on, change survivor and horde size live,
+        /// screenshotting each step.</summary>
+        private IEnumerator PanelTest()
+        {
+            string dir = BepInEx.Paths.BepInExRootPath;
+            var c = Plugin.Settings;
+            var panel = GetComponent<Hud.HostPanel>();
+            yield return new WaitForSeconds(8f);
+            panel.SetOpen(true);
+            yield return new WaitForSeconds(1f);
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase7_panel.png"));
+            yield return new WaitForSeconds(1f);
+            panel.SetOpen(false);
+            Plugin.Logger.LogInfo($"[dev] panel: mode off (zombies alive {Zombie.Alive})");
+            c.Enabled.Value = false;
+            yield return new WaitForSeconds(3f);
+            Plugin.Logger.LogInfo($"[dev] panel: mode off for 3 s: zombies {Zombie.Alive}, survivor arms {FindObjectsOfType<Survivors.SurvivorArms>().Length}, bodies {FindObjectsOfType<Survivors.SurvivorBody>().Length}");
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase7_off.png"));
+            yield return new WaitForSeconds(1f);
+            string before = c.SurvivorName.Value;
+            c.SurvivorName.Value = "coach";
+            c.HordeSize.Value = 20;
+            c.Enabled.Value = true;
+            yield return new WaitForSeconds(4f);
+            Plugin.Logger.LogInfo($"[dev] panel: mode on as coach: arms {FindObjectsOfType<Survivors.SurvivorArms>().Length}, bodies {FindObjectsOfType<Survivors.SurvivorBody>().Length}, zombies {Zombie.Alive}");
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase7_on_coach.png"));
+            yield return new WaitForSeconds(1f);
+            c.SurvivorName.Value = before;
+            c.HordeSize.Value = (int)c.HordeSize.DefaultValue;
+            Plugin.Logger.LogInfo("[dev] panel test end");
         }
 
         /// <summary>Phase 6 test: spawn a Tank, a Boomer and a Witch around the player, render each close up, let them

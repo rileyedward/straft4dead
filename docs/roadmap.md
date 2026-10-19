@@ -13,6 +13,7 @@ Finish and verify a phase before starting the next, then stop and check in. Loca
 | 6 | **Special infected**, one at a time (Tank, Boomer, Witch first) | Each special has its L4D2 behavior and a PvP twist (bile draws the horde to the slimed player, the Witch hunts whoever startles her, ...) |
 | 7 | **Mode toggle and launcher**: rule config, character select, first-run asset extraction, **host zombie settings** in an in-game panel (opening horde size, wave size, wanderers, max alive, wave interval, map-size scaling on/off, specials on/off and chances) | A player with STRAFTAT + L4D2 installed can set up the mod and extract assets locally without manual Blender/Unity steps |
 | 8 | **Multiplayer**: host-authoritative zombies (the host's zombie settings apply to everyone), private lobbies only, 2v2 revives | Friends in a private lobby see the same zombies; teammates can revive in 2v2 |
+| 9 | **README**: write the project README in the same style as Riley's other repos (rileyedward/valrally, rileyedward/how-to-steve) using Riley's README-writing skill. Starts together with Riley, like Phase 8 | README reads like the other repos' and covers setup, features and settings |
 
 ## Status
 
@@ -23,6 +24,10 @@ Finish and verify a phase before starting the next, then stop and check in. Loca
 | 2 | done 2026-10-19: health, pills, kit, incap and HUD verified (see devlog); PvP incap untested |
 | 3 | done 2026-10-19: six outfits, palette shader, 7 L4D2 clips, 254 sounds (see devlog) |
 | 4 | done 2026-10-19: 4 survivors' arms, bodies (incl. ragdolls), voice lines (see devlog) |
-| 5–8 | not started |
+| 5 | done 2026-10-19: opening horde each take, waves, stress-driven calm, map-size scaling (see devlog) |
+| 6 | done 2026-10-19: Tank, Boomer, Witch (see devlog; Witch sitting pose and Tank rock hit not yet seen) |
+| 7 | done 2026-10-19: F9 panel (mode switch, survivor, host zombie settings), live toggles, `tools/setup/setup.ps1` |
+| 8 | **paused by Riley: start in a fresh session together** (see devlog handoff) |
+| 9 | **paused by Riley: start together after Phase 8** (see devlog handoff) |
 
 Details live in `docs/devlog.md`.

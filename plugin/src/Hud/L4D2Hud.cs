@@ -139,14 +139,15 @@ namespace Straft4Dead.Hud
         private void Update()
         {
             var me = SurvivorHealth.Local;
-            bool show = me != null && Plugin.Settings.HudEnabled.Value;
+            bool show = me != null && Plugin.Settings.HudEnabled.Value && Plugin.Settings.Enabled.Value;
             _canvas.enabled = show;
             if (!show)
             {
                 _wasIncap = false;
+                if (_gameHudHidden && me != null) { _hiddenAt = -10f; SetGameHud(me.Player, true); } // switched off live: give STRAFTAT's HUD back
                 return;
             }
-            HideGameHud(me.Player);
+            SetGameHud(me.Player, false);
             HandleInput(me);
 
             float max = me.Max, perm = me.Permanent, temp = me.Temporary, total = perm + temp;
@@ -242,29 +243,32 @@ namespace Straft4Dead.Hud
             return sb.ToString();
         }
 
-        /// <summary>Hide STRAFTAT's own health and ammo widgets (systems-map §8) while our HUD is up.</summary>
-        private void HideGameHud(PlayerHealth p)
+        private bool _gameHudHidden;
+
+        /// <summary>Hide STRAFTAT's own health and ammo widgets (systems-map §8) while our HUD is up, or show them again.</summary>
+        private void SetGameHud(PlayerHealth p, bool visible)
         {
             if (Time.time < _hiddenAt + 1f)
                 return;
             _hiddenAt = Time.time;
+            _gameHudHidden = !visible;
             foreach (var t in FindObjectsOfType<HealthTween>())
-                SetActiveIfDifferent(GameHudWidget(t.transform), false);
+                SetActiveIfDifferent(GameHudWidget(t.transform), visible);
             // STRAFTAT's HUD is 3D: SM_HUD_00 under the UI camera holds the heart and the two ammo rings.
             var hud3d = FindDeep(p.transform, "SM_HUD_00");
             if (hud3d != null)
             {
                 if (!_dumped) { _dumped = true; Plugin.Logger.LogInfo("[hud] STRAFTAT 3D HUD: " + Tree(hud3d, 0)); }
                 var frame = hud3d.GetComponent<Renderer>();
-                if (frame != null && frame.enabled) { frame.enabled = false; Plugin.Logger.LogInfo("[hud] hiding STRAFTAT HUD frame mesh"); }
+                if (frame != null && frame.enabled == !visible) { frame.enabled = visible; Plugin.Logger.LogInfo($"[hud] STRAFTAT HUD frame mesh {(visible ? "shown" : "hidden")}"); }
                 foreach (Transform child in hud3d)
                     if (HideNames.Exists(n => child.name.StartsWith(n)))
-                        SetActiveIfDifferent(child.gameObject, false);
+                        SetActiveIfDifferent(child.gameObject, visible);
             }
             var pm = PauseManager.Instance;
             if (pm != null)
                 foreach (var txt in new Component[] { pm.rightGunAmmo, pm.leftGunAmmo, pm.rightGunAmmoReload, pm.leftGunAmmoReload, pm.minimalistHealthText })
-                    if (txt != null) SetActiveIfDifferent(GameHudWidget(txt.transform), false);
+                    if (txt != null) SetActiveIfDifferent(GameHudWidget(txt.transform), visible);
         }
 
         private bool _dumped;
@@ -303,10 +307,14 @@ namespace Straft4Dead.Hud
             return t.gameObject;
         }
 
+        // Only what we hid comes back when the mode is switched off (some widgets are off in vanilla too).
+        private static readonly HashSet<GameObject> HiddenByUs = new HashSet<GameObject>();
+
         private static void SetActiveIfDifferent(GameObject go, bool active)
         {
-            if (go.activeSelf != active)
+            if (go.activeSelf != active && (!active || HiddenByUs.Remove(go)))
             {
+                if (!active) HiddenByUs.Add(go);
                 go.SetActive(active);
                 Plugin.Logger.LogInfo($"[hud] {(active ? "showing" : "hiding")} STRAFTAT widget '{PathOf(go.transform)}'");
             }

@@ -25,6 +25,7 @@ namespace Straft4Dead.Survivors
         private Renderer[] _ours = new Renderer[0];
         private Transform _srcHips, _dstHips;
         private bool _ragdoll;
+        private string _survivor;
 
         internal GameObject Body => _body;
 
@@ -32,7 +33,12 @@ namespace Straft4Dead.Survivors
         /// (SK_Aboubi_01_Ragdoll, a separate object with its own humanoid avatar and a disabled animator).</summary>
         internal static void AttachAll()
         {
-            if (!Plugin.Settings.SurvivorBodies.Value || SurvivorAssets.Instance == null || !SurvivorAssets.Instance.Loaded)
+            if (SurvivorAssets.Instance == null || !SurvivorAssets.Instance.Loaded)
+                return;
+            foreach (var b in Object.FindObjectsOfType<SurvivorBody>())
+                if (!Plugin.Settings.SurvivorBodies.Value || !Plugin.Settings.Enabled.Value || b._survivor != Plugin.Settings.SurvivorName.Value)
+                    Destroy(b);
+            if (!Plugin.Settings.SurvivorBodies.Value || !Plugin.Settings.Enabled.Value)
                 return;
             foreach (var a in Object.FindObjectsOfType<Animator>())
                 if (a.avatar != null && a.avatar.isHuman && a.avatar.name.StartsWith("SK_Aboubi") && a.GetComponent<SurvivorBody>() == null
@@ -43,7 +49,8 @@ namespace Straft4Dead.Survivors
         private void Start()
         {
             _src = GetComponent<Animator>();
-            var prefab = SurvivorAssets.Instance.Prefab(Plugin.Settings.SurvivorName.Value, "Body");
+            _survivor = Plugin.Settings.SurvivorName.Value;
+            var prefab = SurvivorAssets.Instance.Prefab(_survivor, "Body");
             if (prefab == null) { enabled = false; return; }
 
             _aboubi.AddRange(GetComponentsInChildren<SkinnedMeshRenderer>(true));

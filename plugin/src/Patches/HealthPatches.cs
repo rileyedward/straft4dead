@@ -15,7 +15,7 @@ namespace Straft4Dead.Patches
 
         private static void Prefix(PlayerHealth __instance, ref float __0)
         {
-            if (SurvivorHealth.Writing || !Plugin.Settings.IncapEnabled.Value || !GameAccess.IsServer)
+            if (SurvivorHealth.Writing || !Plugin.Settings.IncapEnabled.Value || !Plugin.Settings.Enabled.Value || !GameAccess.IsServer)
                 return;
             if (__0 > 0f || __0 <= -500f)
                 return;

@@ -162,8 +162,12 @@ namespace Straft4Dead.Zombies
                 _takeKey = key;
             }
 
-            if (!_ready || !cfg.ZombiesEnabled.Value)
+            if (!_ready || !cfg.ZombiesEnabled.Value || !cfg.Enabled.Value)
+            {
+                // Switched off mid-take (host panel): clear the map once.
+                if (_ready && Zombie.Alive + FindObjectsOfType<SpecialInfected>().Length > 0) ClearInfected();
                 return;
+            }
             if (!cfg.DirectorEnabled.Value)
             {
                 Trickle(cfg.MaxAlive.Value, cfg.SpawnInterval.Value);
@@ -208,12 +212,7 @@ namespace Straft4Dead.Zombies
 
         private void NewTake()
         {
-            if (Plugin.Settings.ClearOnNewTake.Value)
-            {
-                foreach (var z in FindObjectsOfType<Zombie>()) Destroy(z.gameObject);
-                foreach (var s in FindObjectsOfType<SpecialInfected>()) Destroy(s.gameObject);
-                foreach (var r in FindObjectsOfType<TankRock>()) Destroy(r.gameObject);
-            }
+            if (Plugin.Settings.ClearOnNewTake.Value) ClearInfected();
             var sc = Plugin.Settings;
             _tankAt = Random.value < sc.TankChance.Value ? Time.time + Random.Range(20f, 40f) : -1f;
             _witchAt = Random.value < sc.WitchChance.Value ? Time.time + 3f : -1f;
@@ -230,6 +229,15 @@ namespace Straft4Dead.Zombies
         }
 
         private void ScheduleHorde(float seconds) => _hordeAt = Time.time + seconds;
+
+        private void ClearInfected()
+        {
+            foreach (var z in FindObjectsOfType<Zombie>()) Destroy(z.gameObject);
+            foreach (var s in FindObjectsOfType<SpecialInfected>()) Destroy(s.gameObject);
+            foreach (var r in FindObjectsOfType<TankRock>()) Destroy(r.gameObject);
+            _hordeLeft = 0;
+            _music.EndHorde();
+        }
 
         /// <summary>Phase 6: one Tank some takes, a Witch sitting somewhere some takes, Boomers now and then.</summary>
         private void Specials()

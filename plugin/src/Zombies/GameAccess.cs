@@ -14,6 +14,7 @@ namespace Straft4Dead.Zombies
         internal static float ToL4D2(float gameUnits) => gameUnits / FullHealth * 100f;
 
         internal static bool IsServer => InstanceFinder.IsServer;
+        internal static bool InLobby => InstanceFinder.IsClient;
 
         internal static bool IsAlive(PlayerHealth p) =>
             p != null && p.isActiveAndEnabled && !p.sync___get_value_isKilled() && p.sync___get_value_health() > 0f &&

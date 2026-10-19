@@ -28,13 +28,20 @@ namespace Straft4Dead.Survivors
         private readonly List<Side> _sides = new List<Side>();
         private readonly List<Renderer> _hidden = new List<Renderer>();
         private GameObject _arms;
+        private string _survivor;
         private Transform _armsRoot;
         private float _handScaleL = 1f, _handScaleR = 1f;
         private static int _logs;
 
         internal static void AttachAll()
         {
-            if (!Plugin.Settings.SurvivorArms.Value || SurvivorAssets.Instance == null || !SurvivorAssets.Instance.Loaded)
+            if (SurvivorAssets.Instance == null || !SurvivorAssets.Instance.Loaded)
+                return;
+            // Switched off, or another survivor picked in the host panel: take ours off (OnDestroy restores STRAFTAT's).
+            foreach (var a in Object.FindObjectsOfType<SurvivorArms>())
+                if (!Plugin.Settings.SurvivorArms.Value || !Plugin.Settings.Enabled.Value || a._survivor != Plugin.Settings.SurvivorName.Value)
+                    Destroy(a);
+            if (!Plugin.Settings.SurvivorArms.Value || !Plugin.Settings.Enabled.Value)
                 return;
             foreach (var fp in Object.FindObjectsOfType<FPArms>())
                 if (fp.GetComponent<SurvivorArms>() == null)
@@ -43,7 +50,8 @@ namespace Straft4Dead.Survivors
 
         private void Start()
         {
-            var prefab = SurvivorAssets.Instance.Prefab(Plugin.Settings.SurvivorName.Value, "Arms");
+            _survivor = Plugin.Settings.SurvivorName.Value;
+            var prefab = SurvivorAssets.Instance.Prefab(_survivor, "Arms");
             var byName = GetComponentsInChildren<Transform>(true).GroupBy(t => t.name).ToDictionary(g => g.Key, g => g.First());
             if (prefab == null || !byName.TryGetValue("Armature", out var armature))
             {

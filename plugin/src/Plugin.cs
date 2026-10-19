@@ -36,6 +36,7 @@ namespace Straft4Dead
             runtime.AddComponent<Runtime>();
             runtime.AddComponent<Dev.DevTools>();
             runtime.AddComponent<Hud.L4D2Hud>();
+            runtime.AddComponent<Hud.HostPanel>();
             runtime.AddComponent<Zombies.InfectedAssets>();
             runtime.AddComponent<Zombies.SoundBank>();
             runtime.AddComponent<Survivors.SurvivorAssets>();
@@ -67,7 +68,7 @@ namespace Straft4Dead
         {
             // Players (and their first-person arms) spawn per take and ragdolls on every death; look for new ones.
             // Bodies are checked often so a fresh ragdoll never shows the Aboubi for long.
-            if (!Plugin.Settings.Enabled.Value) return;
+            // These also take the survivors off again when the mode or a part of it is switched off.
             if (Time.unscaledTime >= _nextArmsScan)
             {
                 _nextArmsScan = Time.unscaledTime + 1f;

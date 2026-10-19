@@ -8,6 +8,7 @@ namespace Straft4Dead
     {
         public ConfigEntry<bool> Enabled { get; }
         public ConfigEntry<bool> LogDiagnostics { get; }
+        public ConfigEntry<string> PanelKey { get; }
 
         public ConfigEntry<bool> ZombiesEnabled { get; }
         public ConfigEntry<int> MaxAlive { get; }
@@ -79,6 +80,7 @@ namespace Straft4Dead
                 "Master switch. When false the plugin loads, logs, and does nothing else.");
             LogDiagnostics = file.Bind("General", "LogDiagnostics", true,
                 "On each scene load, log the scene name, spawn points, and whether a NavMesh is present (Phase 0 recon aid).");
+            PanelKey = file.Bind("General", "PanelKey", "F9", "Opens the in-game Straft 4 Dead panel (mode switch, survivor, the host's zombie settings). Unity Input System key name.");
 
             // Health and damage are in L4D2 HP: 100 = one full STRAFTAT health bar (4 game units).
             ZombiesEnabled = file.Bind("Zombies", "Enabled", true, "Spawn placeholder zombies on maps (host only, local single-player for now).");
