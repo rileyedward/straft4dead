@@ -14,4 +14,12 @@ Finish and verify a phase before starting the next, then stop and check in. Loca
 | 7 | **Mode toggle and launcher**: rule config, character select, first-run asset extraction | A player with STRAFTAT + L4D2 installed can set up the mod and extract assets locally without manual Blender/Unity steps |
 | 8 | **Multiplayer**: host-authoritative zombies, private lobbies only, 2v2 revives | Friends in a private lobby see the same zombies; teammates can revive in 2v2 |
 
-Status lives in `docs/devlog.md`.
+## Status
+
+| phase | state |
+|---|---|
+| 0 | done 2026-10-18 (`docs/phase0-report.md`) |
+| 1 | done 2026-10-18: verified in Arena_00 exploration mode (see devlog); real-gun and melee kills still to be tried by hand |
+| 2–8 | not started |
+
+Details live in `docs/devlog.md`.

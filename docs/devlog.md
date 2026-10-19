@@ -1,5 +1,30 @@
 # Devlog
 
+## 2026-10-18 — Phase 1 (Hello zombie)
+
+**Changed**
+- Placeholder zombies (capsule + head) spawn 10–35 m from the player, path on a runtime navmesh, swing for 5 HP every second within 1.5 m, and die at 50 HP. All values in `[Zombies]` config, in L4D2 HP (100 = a full STRAFTAT bar = 4 units, confirmed at spawn).
+- Weapon hits: one Harmony prefix on `Weapon.TriggerEnvironment` covers every hitscan gun (their environment masks include our Default-layer zombies, checked in game); melee via a `MeleeWeapon.Fire` postfix sweep. A default body shot does 25 HP, so a common dies to 2 body shots or 1 SMG headshot + 1.
+- `[Players] HealthMultiplier` scales each spawn's health on the host (x2 verified: 200 HP, zombies took it from 200 down).
+- Dev tooling: F8 enters `Dev.TestMap` in STRAFTAT's exploration mode (private, host-only); `Dev.AutoTest` does it from the menu, fires a real weapon's hit path at a zombie, and saves screenshots; `Dev.DrawNavMesh`.
+
+**Verified in game (Arena_00, AutoTest)**
+- Navmesh: 10 surfaces, ~50 ms. Zombies spawned, chased, hit the player 100 → 0, the player died ("Flashy died") and respawned; a weapon hit through `TriggerEnvironment` killed a zombie (25 + 25 HP headshots).
+
+**Broke / learned**
+- Navmesh was the hard part. Map collision is one MeshCollider without CPU or GPU mesh data, so Unity's source collection and GPU readback both fail; physics sampling works. Baking all surfaces in one NavMeshData produced holes in the floor (cause unclear, deterministic); baking each connected surface separately is clean.
+- The BepInEx manager object never sees `sceneLoaded` in STRAFTAT; the plugin runs on its own persistent object.
+
+**Not covered yet / open**
+- Explosives, mines, launchers and thrown props don't hurt zombies.
+- Zombies don't jump or drop between surfaces (no off-mesh links); players on block tops are safe.
+- Zombies persist across takes; whether a take should clear them is a Phase 5 (director) decision.
+- Not yet shot with real mouse input or a melee swing by hand (the hit path is proven by the self-test).
+
+**Next**
+- Riley's check-in, then Phase 2 (L4D2 HUD and health, incap then take ends).
+
+
 ## 2026-10-18 — Phase 0 (Recon), session 1, part 2: pipeline proof
 
 **Changed**

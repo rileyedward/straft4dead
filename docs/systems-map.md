@@ -60,7 +60,7 @@ Character name in assets: **Aboubi** (`SK_Aboubi00_Hand_Left00`, `SK_Aboubi00_Ha
 
 - `health : float` is a FishNet **SyncVar** (`syncVar___health`), plus SyncVars `isKilled`, `isShot`, `killer`, `canMove`, `spawnGeneration`, `lastKillDirection`, `playerValues`.
 - `fullHealth : float`, `tempHealth : float` exist on the component (tempHealth usage still to trace).
-- Field default `health = 10` in the constructor; the prefab value overrides it. [IL] The minimalist HUD prints `Ceil(health / 4 * 100)`, so **full health is most likely 4.0 = "100"**. [inferred; confirm in §12]
+- Field default `health = 10` in the constructor; the prefab value overrides it. [IL] **Full health is 4.0 units, shown as "100"** (logged at spawn in game, 2026-10-18; the minimalist HUD prints `Ceil(health / 4 * 100)`).
 - Weapon defaults: `Weapon.damage = 1`, `headMultiplier = 2`. [IL] So a default body shot takes a quarter of a full bar.
 
 **Hit path, hitscan (`Gun.ShootServer`)** [IL]
@@ -73,7 +73,7 @@ Character name in assets: **Aboubi** (`SK_Aboubi00_Hand_Left00`, `SK_Aboubi00_Ha
 
 The same `PlayerHealth` writes appear in `Shotgun`, `Minigun`, `LargeRaycastGun`, `BeamGun`, `ChargeGun`, `MeleeWeapon`, `RepulsiveGun`, `Claymore`, `HandGrenade(Two)`, `PhysicsGrenade`, `ProximityMine`, `Obus`, `PredictedProjectile`, `RebondBalle`, `ShrapnelBallistic`, `Bubble`, `PhysicsProp`, and `FirstPersonController` (falls / damage zones). [IL]
 
-**Implication for zombies (Phase 1):** weapons only damage things on layer 11 under a `Player`-tagged root with a `PlayerHealth`. Zombies must not pretend to be players, so the plan is a Harmony postfix on each weapon's server hit method that repeats the shot against a mod-owned zombie layer and applies damage to a `ZombieHealth`. Non-player damage targets already exist as precedent: `DollHealth` (training doll), `PigHealth`, `PropDamage`. [IL]
+**How zombies take damage (Phase 1):** weapons only damage players on layer 11 under a `Player`-tagged root with a `PlayerHealth`, but every hitscan weapon also reports each *environment* hit through `Weapon.TriggerEnvironment(GameObject hit, Vector3 point, Vector3 normal, Vector3 direction)` (props, pigs, glass, mines). Zombies live on the Default layer, which is in the environment raycast mask (`defaultLayer`) of Gun, Shotgun, LargeRaycastGun, Minigun, BeamGun, ChargeGun, RepulsiveGun, Taser and DualLauncher (runtime check), so one Harmony prefix on `TriggerEnvironment` covers them. Melee (`MeleeWeapon.Fire`, private) gets a postfix sphere-sweep. Not covered yet: grenades, mines, launchers' explosions, thrown props. Non-player damage targets already exist as precedent: `DollHealth` (training doll), `PigHealth`, `PropDamage`. [IL]
 
 **Death → take end** [IL]
 
@@ -109,6 +109,7 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 - No game code calls `NavMesh` or `NavMeshAgent` except an Easy Decal demo script (`ch.sycoforge.Decal.Demo.PathAgent`). [IL]
 - **STRAFTAT maps ship without baked NavMesh data.** A UnityPy census of all 697,704 objects in `data.unity3d` finds **0 `NavMeshData`** (375 scenes each carry only the default `NavMeshSettings`). [data] Zombies need a navmesh built at runtime from map geometry. Unity 2021.3 includes `NavMeshBuilder.BuildNavMeshData` in `UnityEngine.AIModule` (shipped), so a runtime bake per scene load is feasible without extra packages. [data]
 - The plugin's `[diag]` log also prints the navmesh vertex count per scene as a runtime cross-check.
+- **How we build one (Phase 1):** map collision is a single merged `MeshCollider` per map whose mesh has neither CPU data (`isReadable = false`) nor GPU buffers (index buffer is null), so `NavMeshBuilder.CollectSources` silently gets nothing and GPU readback is impossible. `Zombies/NavMeshBaker` samples walkable ground with physics instead: a 0.4 m grid of top-down raycasts per column (restarting under each hit, backface hits enabled), keeping hits that face up and have 1.75 m of headroom, then a dual-grid surface mesh, split into connected surfaces, each baked as its own `NavMeshData`. Arena_00: 20k rays, ~50 ms. Baking all surfaces together made Recast punch holes into the floor; per-surface baking is clean. Surfaces at different heights aren't linked yet (off-mesh links come later). [runtime]
 
 ## 8. HUD
 
@@ -135,6 +136,7 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 ## 10. Networking
 
 - **FishNet** with the **FishySteamworks** transport (Steam P2P via lobbies, `SteamLobby`, Heathen Steamworks). `ClientInstance.nonSteamworksTransport` / `PauseManager.nonSteamworksTransport` indicate a non-Steam transport path exists, likely for local testing. [IL]
+- **Exploration mode** (`SteamLobby.EnterExplorationMap(sceneName)`, the menu's map buttons): creates a lobby if needed, keeps it private, and loads the map with the local player as host. No matchmaking involved; it's our solo test bed (F8 / `Dev.AutoTest`). Players respawn there after dying. [IL + runtime]
 - Gameplay state uses SyncVars and Server/Observers/Target RPCs (the `RpcWriter___…` / `RpcLogic___…` methods are FishNet's code-gen). The server is a player-host. [IL]
 - Player-hosted, so "host-authoritative zombies" in Phase 8 means: zombies simulate on the host and replicate to clients. Registering new `NetworkObject` prefabs at runtime in FishNet needs care (prefab ids must match on all peers); a lighter option is our own state messages over a FishNet broadcast. Decide in Phase 8.
 
@@ -143,9 +145,9 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 | need | hook | phase |
 |---|---|---|
 | Scene ready, spawn points known | `PlayerManager.OnLoadSceneEnd` postfix, or `SceneManager.sceneLoaded` | 1 |
-| Zombies take weapon damage | postfix each weapon's server shot (`Gun.ShootServer`, `Shotgun…`, `Minigun…`, `MeleeWeapon…`) re-casting against the zombie layer | 1 |
-| Zombies hurt players | server-side `PlayerHealth.health` write (same path the guns use) | 1 |
-| Health multiplier | scale damage at the same writes, or scale `fullHealth`/`health` at spawn | 1 |
+| Zombies take weapon damage | prefix `Weapon.TriggerEnvironment` (all hitscan guns), postfix `MeleeWeapon.Fire` | 1 (done) |
+| Zombies hurt players | `PlayerHealth.RpcLogic___RemoveHealth_431000436` on the server (syncs health, plays hit feedback) | 1 (done) |
+| Health multiplier | scale `health` via `sync___set_value_health` once per spawn generation | 1 (done) |
 | Incap before take ends | prefix `PlayerHealth.Update` death branch | 2 |
 | HUD swap | `PlayerSetup.HideHUD`, `PlayerSetup.hudObject` | 2 |
 | Take/round pacing | `PauseManager.OnRoundStarted`, `OnBeforeSpawn`; `ScoreManager.TakeIndex` | 5 |
@@ -156,7 +158,7 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 | # | question | check |
 |---|---|---|
 | Q1 | ~~Is the Aboubi Avatar Humanoid?~~ **Yes** (§9) | closed |
-| Q2 | Full health value on the player prefab (expect 4) | UnityPy: `PlayerHealth` MonoBehaviour on the player prefab |
+| Q2 | ~~Full health~~ **4.0 units = 100** (runtime log) | closed |
 | Q3 | ~~Any NavMeshData in scenes?~~ **None** (§7) | closed |
 | Q4 | HUD prefab hierarchy | UnityPy, or UnityExplorer at runtime |
 | Q5 | ~~Does the matchmaking key change with our plugin loaded?~~ **Yes** (§2) | closed |
