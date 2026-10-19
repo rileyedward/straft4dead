@@ -17,7 +17,7 @@ namespace Straft4Dead.Patches
         {
             if (__0 == null)
                 return true;
-            var zombie = __0.GetComponentInParent<Zombie>();
+            var zombie = __0.GetComponentInParent<IInfected>();
             if (zombie == null)
                 return true;
             bool head = __0.name == Zombie.HeadName;
@@ -37,7 +37,7 @@ namespace Straft4Dead.Patches
             var hits = Physics.SphereCastAll(cam.transform.position, 0.4f, cam.transform.forward, 2.6f, 1 << Zombie.Layer, QueryTriggerInteraction.Ignore);
             foreach (var h in hits)
             {
-                var z = h.collider.GetComponentInParent<Zombie>();
+                var z = h.collider.GetComponentInParent<IInfected>();
                 if (z == null || z.IsDead)
                     continue;
                 bool head = h.collider.name == Zombie.HeadName;

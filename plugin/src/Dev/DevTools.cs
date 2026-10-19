@@ -38,13 +38,13 @@ namespace Straft4Dead.Dev
             if (scene.name == "MainMenu" && !_autoStarted)
             {
                 _autoStarted = true;
-                StartCoroutine(AutoEnter());
+                StartCoroutine(cfg.DevAutoTestMode.Value == "maps" ? MapSweep() : AutoEnter());
             }
             else if (scene.name == cfg.DevTestMap.Value && !_selfTested)
             {
                 _selfTested = true;
                 var mode = Plugin.Settings.DevAutoTestMode.Value;
-                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : SelfTest());
+                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : mode == "specials" ? SpecialsTest() : SelfTest());
             }
         }
 
@@ -182,13 +182,109 @@ namespace Straft4Dead.Dev
             ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_f_after.png"));
         }
 
+        /// <summary>Map sweep: load each map in [Dev] SweepMaps (or every map) in exploration mode, one after another, and record how the navmesh
+        /// bake went (walkable area, triangles, time, how often a spawn point is found around the player) to
+        /// BepInEx/s4d_mapsweep.tsv with a top-down shot per map in BepInEx/s4d_sweep/. Resumes where it left off.</summary>
+        private IEnumerator MapSweep()
+        {
+            string root = BepInEx.Paths.BepInExRootPath, tsv = System.IO.Path.Combine(root, "s4d_mapsweep.tsv"), shots = System.IO.Path.Combine(root, "s4d_sweep");
+            Directory.CreateDirectory(shots);
+            var done = File.Exists(tsv) ? new System.Collections.Generic.HashSet<string>(File.ReadAllLines(tsv).Select(l => l.Split('\t')[0])) : new System.Collections.Generic.HashSet<string>();
+            if (!File.Exists(tsv)) File.WriteAllText(tsv, "map\tstatus\tarea_m2\ttriangles\tbake_ms\tspawn_ok_of_20\tplayer_on_navmesh\n");
+            var skip = new[] { "MainMenu", "VictoryScene", "EmptyScene", "TutorialScene", "EndGame" };
+            var maps = Enumerable.Range(0, SceneManager.sceneCountInBuildSettings)
+                .Select(i => System.IO.Path.GetFileNameWithoutExtension(SceneUtility.GetScenePathByBuildIndex(i)))
+                .Where(m => !skip.Contains(m) && !done.Contains(m)).ToList();
+            var only = Plugin.Settings.DevSweepMaps.Value.Split(',').Select(m => m.Trim()).Where(m => m.Length > 0).ToList();
+            if (only.Count > 0) maps = maps.Where(only.Contains).ToList();
+            Plugin.Logger.LogInfo($"[sweep] {maps.Count} maps to go ({done.Count - 1} done)");
+            yield return new WaitForSeconds(6f);
+            foreach (var map in maps)
+            {
+                Plugin.Logger.LogInfo($"[sweep] loading {map}");
+                SteamLobby.Instance.EnterExplorationMap(map);
+                float t0 = Time.realtimeSinceStartup;
+                ZombieDirector d = null;
+                while (Time.realtimeSinceStartup - t0 < 45f)
+                {
+                    yield return new WaitForSeconds(1f);
+                    d = ZombieDirector.Instance;
+                    if (SceneManager.GetActiveScene().name == map && d != null && d.Baked && FirstPersonController.instance != null) break;
+                }
+                string line;
+                if (d == null || !d.Baked || SceneManager.GetActiveScene().name != map)
+                    line = $"{map}\tload_timeout\t\t\t\t\t";
+                else
+                {
+                    yield return new WaitForSeconds(1f);
+                    var pos = FirstPersonController.instance.transform.position;
+                    bool onNav = UnityEngine.AI.NavMesh.SamplePosition(pos, out _, 4f, UnityEngine.AI.NavMesh.AllAreas);
+                    int ok = ZombieDirector.SpawnProbe(pos, 20);
+                    line = $"{map}\tok\t{d.NavArea:F0}\t{d.NavTriangles}\t{d.BakeMs:F0}\t{ok}\t{onNav}";
+                    OverheadShot(System.IO.Path.Combine(shots, map + ".png"));
+                }
+                File.AppendAllText(tsv, line + "\n");
+                Plugin.Logger.LogInfo("[sweep] " + line.Replace('\t', ' '));
+            }
+            Plugin.Logger.LogInfo("[sweep] done");
+        }
+
+        /// <summary>Phase 6 test: spawn a Tank, a Boomer and a Witch around the player, render each close up, let them
+        /// act (the test survivor has lots of health), then shoot each through the real weapon hit path.</summary>
+        private IEnumerator SpecialsTest()
+        {
+            string dir = BepInEx.Paths.BepInExRootPath;
+            yield return new WaitForSeconds(6f);
+            var me = Survivors.SurvivorHealth.Local;
+            if (me == null || ZombieDirector.Instance == null || !ZombieDirector.Instance.Baked) { Plugin.Logger.LogWarning("[dev] specials test: not ready"); yield break; }
+            Vector3 at = me.Player.transform.position;
+            Vector3 Near(float d)
+            {
+                for (int i = 0; i < 40; i++)
+                {
+                    var v = Random.insideUnitCircle.normalized * d;
+                    if (UnityEngine.AI.NavMesh.SamplePosition(at + new Vector3(v.x, 0f, v.y), out var h, 3f, UnityEngine.AI.NavMesh.AllAreas)) return h.position;
+                }
+                return at;
+            }
+            var witch = Witch.Create(Near(16f));
+            var boomer = Boomer.Create(Near(14f));
+            var tank = Tank.Create(Near(22f));
+            yield return new WaitForSeconds(2.5f);
+            CloseUp(tank.transform, System.IO.Path.Combine(dir, "s4d_phase6_tank.png"));
+            CloseUp(boomer.transform, System.IO.Path.Combine(dir, "s4d_phase6_boomer.png"));
+            CloseUp(witch.transform, System.IO.Path.Combine(dir, "s4d_phase6_witch.png"));
+            for (int t = 0; t < 8; t++)
+            {
+                yield return new WaitForSeconds(2f);
+                Plugin.Logger.LogInfo($"[dev] specials t={t * 2 + 2}s: tank {(tank ? Vector3.Distance(tank.transform.position, me.Player.transform.position).ToString("F1") + " m" : "gone")}, boomer {(boomer && !boomer.IsDead ? Vector3.Distance(boomer.transform.position, me.Player.transform.position).ToString("F1") + " m" : "gone")}, witch rage {(witch ? witch.Rage.ToString("F2") : "gone")}, rocks {FindObjectsOfType<TankRock>().Length}, bile {Boomer.LocalBiledUntil > Time.time}, survivor {me.Permanent + me.Temporary:F0} HP incap {me.Incapacitated}");
+                if (t == 3) ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase6_view.png"));
+            }
+            var weapon = Resources.FindObjectsOfTypeAll<Weapon>().FirstOrDefault(w => w.name.StartsWith("AR15")) ?? Resources.FindObjectsOfTypeAll<Weapon>().First(w => w.damage > 0f && !(w is MeleeWeapon));
+            foreach (var target in new SpecialInfected[] { boomer, witch, tank })
+            {
+                if (target == null || target.IsDead) continue;
+                var head = target.GetComponentsInChildren<Collider>().First(c => c.name == Zombie.HeadName).gameObject;
+                int shots = 0;
+                while (!target.IsDead && shots < 60) { weapon.TriggerEnvironment(head, head.transform.position, Vector3.back, Vector3.forward); shots++; yield return new WaitForSeconds(0.05f); }
+                Plugin.Logger.LogInfo($"[dev] specials: {target.GetType().Name} dead={target.IsDead} after {shots} {weapon.name} headshots");
+            }
+            yield return new WaitForSeconds(3f);
+            Plugin.Logger.LogInfo("[dev] specials test end");
+        }
+
         /// <summary>Phase 5 test: stand still and let the director run (wanderers, a horde, the calm, a new take after
         /// the survivor goes down), logging its state every few seconds with screenshots during the horde.</summary>
         private IEnumerator DirectorTest()
         {
             string dir = BepInEx.Paths.BepInExRootPath;
             bool shot = false;
-            for (float t = 0f; t < 120f; t += 3f)
+            // Which guns one-shot a common (body / head)?
+            float zhp = Plugin.Settings.ZombieHealth.Value, mult = Plugin.Settings.WeaponDamageToZombies.Value;
+            var guns = Resources.FindObjectsOfTypeAll<Weapon>().Where(w => w.damage > 0f).GroupBy(w => w.name.Replace("(Clone)", "")).Select(g => g.First()).OrderBy(w => w.damage).ToList();
+            Plugin.Logger.LogInfo($"[dev] weapons vs {zhp:F0} HP commons: " + string.Join(", ", guns.Select(w =>
+                $"{w.name.Replace("(Clone)", "")} {GameAccess.ToL4D2(w.damage) * mult:F0}/{GameAccess.ToL4D2(w.damage * w.headMultiplier) * mult:F0}{(GameAccess.ToL4D2(w.damage) * mult >= zhp ? " 1-shot" : "")}")));
+            for (float t = 0f; t < 75f; t += 3f)
             {
                 // Stand in for a player fighting back: anything that gets within a few metres dies.
                 for (int k = 0; k < 6; k++)

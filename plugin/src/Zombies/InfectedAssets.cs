@@ -14,6 +14,10 @@ namespace Straft4Dead.Zombies
     {
         internal static InfectedAssets Instance;
         internal readonly List<GameObject> Outfits = new List<GameObject>();
+        private readonly Dictionary<string, GameObject> _specials = new Dictionary<string, GameObject>();
+
+        /// <summary>Special_&lt;model&gt; from the s4d_specials bundle (hulk, boomer, witch), or null.</summary>
+        internal GameObject Special(string model) => _specials.TryGetValue("Special_" + model, out var g) ? g : null;
         private readonly Dictionary<string, List<AudioClip>> _sounds = new Dictionary<string, List<AudioClip>>();
 
         // Sound category -> folders under <L4D2>/sound/npc/infected. Files with these words are special infected
@@ -47,6 +51,16 @@ namespace Straft4Dead.Zombies
                     Outfits.AddRange(req.assetBundle.LoadAllAssets<GameObject>().Where(g => g.name.StartsWith("Infected_")));
             }
             Plugin.Logger.LogInfo($"[infected] {Outfits.Count} outfits from '{bundlePath}': {string.Join(", ", Outfits.Select(o => o.name))}");
+            string specialsPath = Plugin.Settings.SpecialsBundle.Value;
+            if (File.Exists(specialsPath))
+            {
+                var sreq = AssetBundle.LoadFromFileAsync(specialsPath);
+                yield return sreq;
+                if (sreq.assetBundle != null)
+                    foreach (var g in sreq.assetBundle.LoadAllAssets<GameObject>().Where(g => g.name.StartsWith("Special_")))
+                        _specials[g.name] = g;
+            }
+            Plugin.Logger.LogInfo($"[infected] specials from '{specialsPath}': {string.Join(", ", _specials.Keys)}");
 
             string root = Path.Combine(Plugin.Settings.L4D2SoundDir.Value, "npc", "infected");
             int total = 0;

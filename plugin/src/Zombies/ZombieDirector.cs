@@ -7,9 +7,10 @@ using UnityEngine.AI;
 namespace Straft4Dead.Zombies
 {
     /// <summary>Director-lite (Phase 5). After a map loads it bakes a navmesh, then paces the infected the way L4D2's
-    /// director does, in a loop:
-    ///   BuildUp: wanderers trickle in up to [Director] Wanderers while the mob timer runs;
-    ///   Horde:   the timer fires, a mob of HordeSize spawns alerted from one direction with the horde music;
+    /// director does, squeezed to fit STRAFTAT's short takes: every take opens with a horde storming in, and if the
+    /// take lasts, the loop goes on in waves:
+    ///   Horde:   a mob of HordeSize spawns at once, alerted, from one direction, with the horde music;
+    ///   BuildUp: wanderers trickle in up to [Director] Wanderers while the timer to the next wave runs;
     ///   Relax:   once survivor stress peaks (or the horde is over), nothing new spawns for RelaxSeconds.
     /// Stress is L4D2's "intensity": damage taken, kills at close range and incaps push it up, it bleeds off when
     /// nothing is hurting you. Host only; zombies are local objects until Phase 8.</summary>
@@ -27,12 +28,31 @@ namespace Straft4Dead.Zombies
         internal float Stress { get; private set; }
         internal float NextHordeIn => Mathf.Max(0f, _hordeAt - Time.time);
 
+        /// <summary>Navmesh results for this map (also read by the Dev map sweep).</summary>
+        internal bool Baked { get; private set; }
+        internal float NavArea { get; private set; }
+        internal int NavTriangles { get; private set; }
+        internal float BakeMs { get; private set; }
+
+        /// <summary>Map-size scaling for wanderers and hordes: small arenas get fewer than big maps.</summary>
+        internal float MapScale
+        {
+            get
+            {
+                float full = Plugin.Settings.FullSizeArea.Value;
+                return full <= 0f || NavArea <= 0f ? 1f : Mathf.Clamp(NavArea / full, 0.4f, 1f);
+            }
+        }
+        private int Scaled(int n) => Mathf.Max(3, Mathf.RoundToInt(n * MapScale));
+
         private float _nextSpawn, _hordeAt, _phaseStart, _lastHurt;
         private int _hordeLeft;
         private Vector3 _hordeOrigin;
         private bool _ready;
         private long _takeKey = -1;
         private DirectorMusic _music;
+        private float _tankAt = -1f, _witchAt = -1f, _nextBoomer;
+        private bool _openingPending; // every take opens with a horde, whatever the stress
 
         internal static PlayerHealth NearestLivingPlayer(Vector3 from)
         {
@@ -90,11 +110,33 @@ namespace Straft4Dead.Zombies
             yield return new WaitForSeconds(1.5f); // let the map and its moving parts settle
             float t0 = Time.realtimeSinceStartup;
             int tris = NavMeshBaker.Bake(gameObject.scene);
-            Plugin.Logger.LogInfo($"[zombies] navmesh bake took {(Time.realtimeSinceStartup - t0) * 1000f:F0} ms");
+            BakeMs = (Time.realtimeSinceStartup - t0) * 1000f;
+            NavTriangles = tris;
+            NavArea = NavMeshArea();
+            Baked = true;
+            Plugin.Logger.LogInfo($"[zombies] navmesh bake took {BakeMs:F0} ms: {tris} triangles, {NavArea:F0} m² walkable, zombie counts x{MapScale:F2}");
             _ready = tris > 0;
             if (!_ready)
                 Plugin.Logger.LogWarning("[zombies] no navmesh, zombies disabled on this map");
             NewTake();
+        }
+
+        private static float NavMeshArea()
+        {
+            var t = NavMesh.CalculateTriangulation();
+            float area = 0f;
+            for (int i = 0; i + 2 < t.indices.Length; i += 3)
+                area += Vector3.Cross(t.vertices[t.indices[i + 1]] - t.vertices[t.indices[i]], t.vertices[t.indices[i + 2]] - t.vertices[t.indices[i]]).magnitude * 0.5f;
+            return area;
+        }
+
+        /// <summary>Dev: how many of n spawn-point searches around this position succeed.</summary>
+        internal static int SpawnProbe(Vector3 around, int n)
+        {
+            int ok = 0;
+            for (int i = 0; i < n; i++)
+                if (TryFindSpawnPoint(around, Plugin.Settings.SpawnMinDistance.Value, Plugin.Settings.SpawnMaxDistance.Value, out _)) ok++;
+            return ok;
         }
 
         private void OnDestroy()
@@ -132,11 +174,13 @@ namespace Straft4Dead.Zombies
             if (Time.time - _lastHurt > 4f)
                 Stress = Mathf.Max(0f, Stress - 0.05f * Time.deltaTime);
 
+            if (cfg.SpecialsEnabled.Value) Specials();
+
             switch (State)
             {
                 case Phase.BuildUp:
-                    Trickle(Mathf.Min(cfg.Wanderers.Value, cfg.MaxAlive.Value), cfg.SpawnInterval.Value, alerted: false);
-                    if (Stress >= 1f) Enter(Phase.Relax);
+                    Trickle(Mathf.Min(Scaled(cfg.Wanderers.Value), cfg.MaxAlive.Value), cfg.SpawnInterval.Value, alerted: false);
+                    if (Stress >= 1f && !_openingPending) Enter(Phase.Relax);
                     else if (Time.time >= _hordeAt) StartHorde();
                     break;
                 case Phase.Horde:
@@ -165,27 +209,82 @@ namespace Straft4Dead.Zombies
         private void NewTake()
         {
             if (Plugin.Settings.ClearOnNewTake.Value)
+            {
                 foreach (var z in FindObjectsOfType<Zombie>()) Destroy(z.gameObject);
+                foreach (var s in FindObjectsOfType<SpecialInfected>()) Destroy(s.gameObject);
+                foreach (var r in FindObjectsOfType<TankRock>()) Destroy(r.gameObject);
+            }
+            var sc = Plugin.Settings;
+            _tankAt = Random.value < sc.TankChance.Value ? Time.time + Random.Range(20f, 40f) : -1f;
+            _witchAt = Random.value < sc.WitchChance.Value ? Time.time + 3f : -1f;
+            _nextBoomer = sc.BoomerInterval.Value > 0f ? Time.time + Random.Range(0.4f, 1f) * sc.BoomerInterval.Value : float.MaxValue;
+            Boomer.LocalBiledUntil = 0f;
             Stress = 0f;
             _hordeLeft = 0;
             _music.EndHorde();
             State = Phase.BuildUp;
             _phaseStart = Time.time;
             ScheduleHorde(Plugin.Settings.FirstHorde.Value);
+            _openingPending = true;
             Plugin.Logger.LogInfo($"[director] new take: zombies cleared, first horde in {Plugin.Settings.FirstHorde.Value:F0} s");
         }
 
         private void ScheduleHorde(float seconds) => _hordeAt = Time.time + seconds;
 
+        /// <summary>Phase 6: one Tank some takes, a Witch sitting somewhere some takes, Boomers now and then.</summary>
+        private void Specials()
+        {
+            var anchor = NearestLivingPlayer(Vector3.zero);
+            if (anchor == null) return;
+            Vector3 at = anchor.transform.position;
+            var me = Survivors.SurvivorHealth.Local;
+            if (_tankAt > 0f && Time.time >= _tankAt && TryFindSpawnPoint(at, 20f, Plugin.Settings.SpawnMaxDistance.Value, out var tp))
+            {
+                _tankAt = -1f;
+                Tank.Create(tp);
+                Stress = Mathf.Max(Stress, 0.5f);
+                Survivors.SurvivorVoice.Say(me, "warn_tank", interrupt: true);
+            }
+            if (_witchAt > 0f && Time.time >= _witchAt && TryFindSpawnPoint(at, 18f, Plugin.Settings.SpawnMaxDistance.Value, out var wp))
+            {
+                _witchAt = -1f;
+                Witch.Create(wp);
+            }
+            if (Time.time >= _nextBoomer)
+            {
+                _nextBoomer = Time.time + Random.Range(0.7f, 1.3f) * Plugin.Settings.BoomerInterval.Value;
+                if (!FindObjectsOfType<Boomer>().Any(b => !b.IsDead) && TryFindSpawnPoint(at, Plugin.Settings.SpawnMinDistance.Value, Plugin.Settings.SpawnMaxDistance.Value, out var bp))
+                {
+                    Boomer.Create(bp);
+                    Survivors.SurvivorVoice.Say(me, "warn_boomer", chance: 0.5f);
+                }
+            }
+        }
+
+        /// <summary>Bile calls a horde onto the survivor it landed on (L4D2: every common in range goes for them).</summary>
+        internal void CallBileHorde(Vector3 victim)
+        {
+            foreach (var z in FindObjectsOfType<Zombie>()) z.Alert(spread: false);
+            if (State == Phase.Horde || !TryFindSpawnPoint(victim, Plugin.Settings.SpawnMinDistance.Value, Plugin.Settings.SpawnMaxDistance.Value, out _hordeOrigin)) return;
+            _hordeLeft = Scaled(Plugin.Settings.HordeSize.Value);
+            Enter(Phase.Horde);
+            if (Plugin.Settings.HordeMusic.Value) _music.StartHorde();
+            Plugin.Logger.LogInfo($"[director] bile horde of {_hordeLeft} from {_hordeOrigin}");
+        }
+
         private void StartHorde()
         {
             var anchor = NearestLivingPlayer(Vector3.zero);
-            if (anchor == null || !TryFindSpawnPoint(anchor.transform.position, Plugin.Settings.SpawnMinDistance.Value * 1.5f, Plugin.Settings.SpawnMaxDistance.Value, out _hordeOrigin))
+            // Prefer well out of sight; tight maps (Backrooms) may only have reachable floor closer in or further out.
+            float min = Plugin.Settings.SpawnMinDistance.Value, max = Plugin.Settings.SpawnMaxDistance.Value;
+            if (anchor == null || !(TryFindSpawnPoint(anchor.transform.position, min * 1.5f, max, out _hordeOrigin)
+                                    || TryFindSpawnPoint(anchor.transform.position, min * 0.6f, max * 1.5f, out _hordeOrigin)))
             {
                 ScheduleHorde(5f); // try again shortly
                 return;
             }
-            _hordeLeft = Plugin.Settings.HordeSize.Value;
+            _hordeLeft = Scaled(Plugin.Settings.HordeSize.Value);
+            _openingPending = false;
             Enter(Phase.Horde);
             if (Plugin.Settings.HordeMusic.Value) _music.StartHorde();
             Survivors.SurvivorVoice.Say(Survivors.SurvivorHealth.Local, "incoming", interrupt: true);
@@ -194,12 +293,13 @@ namespace Straft4Dead.Zombies
             Plugin.Logger.LogInfo($"[director] horde of {_hordeLeft} from {_hordeOrigin} ({Vector3.Distance(_hordeOrigin, anchor.transform.position):F0} m out)");
         }
 
-        /// <summary>Spawn the mob in quick bursts around one origin, so it pours in from a direction.</summary>
+        /// <summary>Spawn the whole mob at once around one origin (a few per frame to avoid a hitch), so it storms in
+        /// from one direction.</summary>
         private void SpawnHordeWave()
         {
             if (_hordeLeft <= 0 || Time.time < _nextSpawn) return;
-            _nextSpawn = Time.time + 0.35f;
-            for (int i = 0; i < 3 && _hordeLeft > 0 && Zombie.Alive < Plugin.Settings.MaxAlive.Value; i++)
+            _nextSpawn = Time.time + 0.05f;
+            for (int i = 0; i < 5 && _hordeLeft > 0 && Zombie.Alive < Plugin.Settings.MaxAlive.Value; i++)
             {
                 if (!NavMesh.SamplePosition(_hordeOrigin + Random.insideUnitSphere * 5f, out var hit, 4f, NavMesh.AllAreas)) continue;
                 var z = Zombie.Create(hit.position, alerted: true);

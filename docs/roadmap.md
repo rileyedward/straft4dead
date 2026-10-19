@@ -11,8 +11,8 @@ Finish and verify a phase before starting the next, then stop and check in. Loca
 | 4 | **Survivors**: arms, then bodies, then voice lines | Players render as L4D2 survivors in first and third person; contextual voice lines |
 | 5 | **Director-lite**: wave pacing per take | Hordes ramp and relax per take, modeled on L4D2's director |
 | 6 | **Special infected**, one at a time (Tank, Boomer, Witch first) | Each special has its L4D2 behavior and a PvP twist (bile draws the horde to the slimed player, the Witch hunts whoever startles her, ...) |
-| 7 | **Mode toggle and launcher**: rule config, character select, first-run asset extraction | A player with STRAFTAT + L4D2 installed can set up the mod and extract assets locally without manual Blender/Unity steps |
-| 8 | **Multiplayer**: host-authoritative zombies, private lobbies only, 2v2 revives | Friends in a private lobby see the same zombies; teammates can revive in 2v2 |
+| 7 | **Mode toggle and launcher**: rule config, character select, first-run asset extraction, **host zombie settings** in an in-game panel (opening horde size, wave size, wanderers, max alive, wave interval, map-size scaling on/off, specials on/off and chances) | A player with STRAFTAT + L4D2 installed can set up the mod and extract assets locally without manual Blender/Unity steps |
+| 8 | **Multiplayer**: host-authoritative zombies (the host's zombie settings apply to everyone), private lobbies only, 2v2 revives | Friends in a private lobby see the same zombies; teammates can revive in 2v2 |
 
 ## Status
 

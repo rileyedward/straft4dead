@@ -28,6 +28,10 @@ namespace Straft4Dead.Survivors
             { "kill", new[] { "killconfirmation" } },
             { "laugh", new[] { "laughter", "hurrah" } },
             { "incoming", new[] { "incoming" } },
+            { "biled", new[] { "boomerreaction" } },
+            { "warn_tank", new[] { "warntank" } },
+            { "warn_boomer", new[] { "warnboomer" } },
+            { "warn_witch", new[] { "warnwitch" } },
         };
 
         private readonly Dictionary<string, List<AudioClip>> _lines = new Dictionary<string, List<AudioClip>>();

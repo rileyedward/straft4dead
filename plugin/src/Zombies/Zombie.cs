@@ -7,7 +7,7 @@ namespace Straft4Dead.Zombies
     /// <summary>A common infected. Phase 3: a random L4D2 outfit (random head and body variant, random skin and clothes
     /// palette rows) animated with L4D2's own clips through a humanoid avatar, with L4D2 infected sounds. Falls back to
     /// the Phase 1 capsule when the s4d_infected bundle isn't there. Health and damage are in L4D2 HP.</summary>
-    internal sealed class Zombie : MonoBehaviour
+    internal sealed class Zombie : MonoBehaviour, IInfected
     {
         // Default layer: STRAFTAT's hitscan weapons raycast their environment mask against it, which is what lets
         // Weapon.TriggerEnvironment report our hits (see WeaponPatches).
@@ -28,7 +28,7 @@ namespace Straft4Dead.Zombies
         private string _state;
         private float _runSpeed, _nextAlertCheck, _nextWander;
 
-        internal bool IsDead => _dead;
+        public bool IsDead => _dead;
         /// <summary>Chasing survivors. Wanderers shamble about until they see or hear a survivor, get hit, or a
         /// neighbour alerts them; horde zombies spawn alerted.</summary>
         internal bool Alerted { get; private set; }
@@ -184,7 +184,7 @@ namespace Straft4Dead.Zombies
         }
 
         /// <summary>Apply damage in L4D2 HP. Returns true when this hit killed the zombie.</summary>
-        internal bool TakeDamage(float hp, Vector3 point, Vector3 direction, bool headshot)
+        public bool TakeDamage(float hp, Vector3 point, Vector3 direction, bool headshot)
         {
             if (_dead)
                 return false;

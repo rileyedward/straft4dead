@@ -174,6 +174,10 @@ namespace Straft4Dead.Hud
             _lastTotal = total;
             _hurtFlash = Mathf.Max(0f, _hurtFlash - Time.deltaTime * 0.4f);
             _redOverlay.color = new Color(0.55f, 0f, 0f, me.Incapacitated ? 0.35f + 0.25f * me.IncapProgress : Mathf.Max(lowHp, _hurtFlash));
+            // Boomer bile: a murky green film that clears over the last few seconds.
+            float bile = Mathf.Clamp01((Zombies.Boomer.LocalBiledUntil - Time.time) / 4f);
+            if (bile > 0f && !me.Incapacitated)
+                _redOverlay.color = new Color(0.32f, 0.42f, 0.08f, 0.55f * bile + 0.05f * Mathf.Sin(Time.time * 3f) * bile);
             _incapText.text = me.Incapacitated ? "YOU'RE INCAPACITATED" : "";
             IncapView(me);
         }

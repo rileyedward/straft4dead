@@ -21,6 +21,7 @@ namespace Straft4Dead
         public ConfigEntry<float> ZombieAttackInterval { get; }
         public ConfigEntry<float> WeaponDamageToZombies { get; }
         public ConfigEntry<string> InfectedBundle { get; }
+        public ConfigEntry<float> MaxBakeSize { get; }
         public ConfigEntry<float> PlayerHealthMultiplier { get; }
         public ConfigEntry<bool> IncapEnabled { get; }
         public ConfigEntry<float> IncapSeconds { get; }
@@ -45,6 +46,16 @@ namespace Straft4Dead
         public ConfigEntry<float> RelaxSeconds { get; }
         public ConfigEntry<bool> ClearOnNewTake { get; }
         public ConfigEntry<bool> HordeMusic { get; }
+        public ConfigEntry<float> FullSizeArea { get; }
+
+        public ConfigEntry<bool> SpecialsEnabled { get; }
+        public ConfigEntry<string> SpecialsBundle { get; }
+        public ConfigEntry<float> TankChance { get; }
+        public ConfigEntry<float> TankHealth { get; }
+        public ConfigEntry<float> TankPunchDamage { get; }
+        public ConfigEntry<float> BoomerInterval { get; }
+        public ConfigEntry<float> WitchChance { get; }
+        public ConfigEntry<float> WitchHealth { get; }
 
         public ConfigEntry<string> SurvivorBundle { get; }
         public ConfigEntry<bool> SurvivorArms { get; }
@@ -55,6 +66,7 @@ namespace Straft4Dead
         public ConfigEntry<string> DevAutoTestMode { get; }
         public ConfigEntry<string> DevTestMap { get; }
         public ConfigEntry<float> DevScreenshotDelay { get; }
+        public ConfigEntry<string> DevSweepMaps { get; }
         public ConfigEntry<bool> DevDrawNavMesh { get; }
 
         public ConfigEntry<bool> Phase0AssetProof { get; }
@@ -79,7 +91,8 @@ namespace Straft4Dead
             ZombieSpeed = file.Bind("Zombies", "Speed", 6.5f, "Run speed in m/s.");
             ZombieReach = file.Bind("Zombies", "Reach", 1.5f, "Swing reach in metres.");
             ZombieAttackInterval = file.Bind("Zombies", "AttackInterval", 1f, "Seconds between swings.");
-            WeaponDamageToZombies = file.Bind("Zombies", "WeaponDamageMultiplier", 1f, "Scales STRAFTAT weapon damage against zombies (1 = a default body shot does 25 HP).");
+            WeaponDamageToZombies = file.Bind("Zombies", "WeaponDamageMultiplier", 4f, "Scales STRAFTAT weapon damage against zombies. 4: a body shot that would take a quarter of a player's health does 100 HP, so most guns one-shot a common (50 HP); 1 = player-equivalent damage.");
+            MaxBakeSize = file.Bind("Zombies", "MaxBakeSize", 140f, "Largest area (metres per side) the zombie navmesh covers, centred on the spawn points. Keeps load time sane on huge maps; 0 = whole map.");
             InfectedBundle = file.Bind("Zombies", "InfectedBundle", "", "Full path to the s4d_infected AssetBundle (L4D2 commons built from your install). Empty or missing: placeholder capsules.");
             PlayerHealthMultiplier = file.Bind("Players", "HealthMultiplier", 1f, "Scales every player's health when they spawn (host only). 2 = 200 HP against bullets and zombies.");
             IncapEnabled = file.Bind("Players", "Incap", true, "At 0 HP go down for a few seconds (L4D2 incap: camera drop, red screen, sting) before the take ends.");
@@ -98,13 +111,23 @@ namespace Straft4Dead
 
             DirectorEnabled = file.Bind("Director", "Enabled", true, "L4D2-style pacing: wanderers build up, a horde hits, then a calm spell; survivor stress (damage, close kills, incaps) brings the calm on early. Off: a constant trickle up to MaxAlive.");
             Wanderers = file.Bind("Director", "Wanderers", 8, "Wandering commons kept on the map during build-up. They chase once they see or hear you, get shot, or a neighbour does.");
-            HordeSize = file.Bind("Director", "HordeSize", 20, "Commons in a horde (L4D2 mobs are 10-30).");
-            FirstHorde = file.Bind("Director", "FirstHorde", 30f, "Seconds into a take before the first horde.");
-            HordeIntervalMin = file.Bind("Director", "HordeIntervalMin", 60f, "Shortest gap between hordes (seconds of build-up).");
-            HordeIntervalMax = file.Bind("Director", "HordeIntervalMax", 100f, "Longest gap between hordes.");
-            RelaxSeconds = file.Bind("Director", "RelaxSeconds", 20f, "Calm after a peak: no new zombies for this long (and until stress drops).");
+            HordeSize = file.Bind("Director", "HordeSize", 12, "Commons in a horde: enough to worry about, not a wall (L4D2 mobs are 10-30).");
+            FirstHorde = file.Bind("Director", "FirstHorde", 2f, "Seconds into a take before the opening horde storms in (takes are short, so it comes right away).");
+            HordeIntervalMin = file.Bind("Director", "HordeIntervalMin", 40f, "If the take goes on: shortest gap before the next wave (seconds of build-up).");
+            HordeIntervalMax = file.Bind("Director", "HordeIntervalMax", 60f, "Longest gap before the next wave.");
+            RelaxSeconds = file.Bind("Director", "RelaxSeconds", 10f, "Calm after a peak: no new zombies for this long (and until stress drops).");
             ClearOnNewTake = file.Bind("Director", "ClearOnNewTake", true, "Remove every zombie when a new take starts (everyone respawned).");
+            FullSizeArea = file.Bind("Director", "FullSizeArea", 1500f, "Walkable floor (m²) at which a map gets the full Wanderers and HordeSize; smaller maps get proportionally fewer (at least 40%). 0 = no scaling.");
             HordeMusic = file.Bind("Director", "HordeMusic", true, "Play L4D2's horde stinger and drums during a horde.");
+
+            SpecialsEnabled = file.Bind("Specials", "Enabled", true, "Tank, Boomer and Witch (needs [Director] Enabled).");
+            SpecialsBundle = file.Bind("Specials", "Bundle", "", "Full path to the s4d_specials AssetBundle (Tank, Boomer, Witch built from your L4D2 install). Empty or missing: capsule stand-ins.");
+            TankChance = file.Bind("Specials", "TankChance", 0.35f, "Chance per take that a Tank shows up (20-40 s in, if the take lasts).");
+            TankHealth = file.Bind("Specials", "TankHealth", 1000f, "Tank health in L4D2 HP (L4D2 normal: 4000; scaled for short takes).");
+            TankPunchDamage = file.Bind("Specials", "TankPunchDamage", 24f, "Damage of a Tank punch or rock (L4D2 normal: 24).");
+            BoomerInterval = file.Bind("Specials", "BoomerInterval", 30f, "Average seconds between Boomers (one at a time). 0 = none.");
+            WitchChance = file.Bind("Specials", "WitchChance", 0.5f, "Chance per take that a Witch sits somewhere on the map.");
+            WitchHealth = file.Bind("Specials", "WitchHealth", 500f, "Witch health in L4D2 HP (L4D2: 1000).");
 
             SurvivorBundle = file.Bind("Survivors", "Bundle", "", "Full path to the s4d_survivors AssetBundle (L4D2 survivors built from your install). Empty or missing: STRAFTAT's own character.");
             SurvivorArms = file.Bind("Survivors", "Arms", true, "Show the survivor's L4D2 first-person arms instead of STRAFTAT's.");
@@ -116,6 +139,7 @@ namespace Straft4Dead
             DevTestMap = file.Bind("Dev", "TestMap", "", "Scene name for F8 / AutoTest (the plugin logs all scene names at startup).");
             DevDrawNavMesh = file.Bind("Dev", "DrawNavMesh", false, "Draw the baked navmesh in cyan.");
             DevScreenshotDelay = file.Bind("Dev", "ScreenshotDelay", 12f, "AutoTest: seconds to wait before each screenshot.");
+            DevSweepMaps = file.Bind("Dev", "SweepMaps", "Backrooms_00,Chateaux_01,HK_02", "AutoTestMode=maps: comma-separated scene names to check (empty = every map, which takes a long time).");
 
             Phase0AssetProof = file.Bind("Phase0", "AssetProof", false,
                 "Phase 0 test: in the main menu, load the locally built L4D2 bundle, show the infected and Ellis (pose copied from the menu Aboubi), play a voice line, save a screenshot.");

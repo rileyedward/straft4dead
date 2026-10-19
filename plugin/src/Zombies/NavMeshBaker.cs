@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -34,6 +35,7 @@ namespace Straft4Dead.Zombies
 
             if (!MapBounds(map, mask, out var bounds))
                 return 0;
+            ClipToPlayArea(ref bounds);
             int baked = 0;
             foreach (var surface in WalkableSurfaces(bounds, mask))
             {
@@ -51,6 +53,23 @@ namespace Straft4Dead.Zombies
             if (Plugin.Settings.DevDrawNavMesh.Value)
                 DrawDebug(tri);
             return tri.indices.Length / 3;
+        }
+
+        /// <summary>Big maps (Babbdi) would take minutes to sample: keep the bake to a square of [Zombies] MaxBakeSize
+        /// around the player spawn points, which is where takes are fought.</summary>
+        private static void ClipToPlayArea(ref Bounds b)
+        {
+            float max = Plugin.Settings.MaxBakeSize.Value;
+            if (max <= 0f || (b.size.x <= max && b.size.z <= max)) return;
+            var spawns = new List<Vector3>();
+            foreach (var tag in new[] { "Spawnpoints", "Spawnpoints4Player" })
+                try { spawns.AddRange(GameObject.FindGameObjectsWithTag(tag).Select(g => g.transform.position)); } catch (UnityException) { }
+            Vector3 c = spawns.Count > 0 ? spawns.Aggregate(Vector3.zero, (a, v) => a + v) / spawns.Count
+                : FirstPersonController.instance != null ? FirstPersonController.instance.transform.position : b.center;
+            var size = new Vector3(Mathf.Min(b.size.x, max), b.size.y, Mathf.Min(b.size.z, max));
+            var clipped = new Bounds(new Vector3(c.x, b.center.y, c.z), size);
+            Plugin.Logger.LogInfo($"[zombies] map is {b.size.x:F0}x{b.size.z:F0} m: baking {size.x:F0}x{size.z:F0} m around {(spawns.Count > 0 ? spawns.Count + " spawn points" : "the player")}");
+            b = clipped;
         }
 
         public static void Clear()
