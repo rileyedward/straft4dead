@@ -11,7 +11,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>Straft4Dead.Launcher</RootNamespace>
     <AssemblyName>Straft4Dead-Launcher</AssemblyName>
-    <Version>0.1.1</Version>
+    <Version>0.1.0</Version>
     <Product>Straft 4 Dead Launcher</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

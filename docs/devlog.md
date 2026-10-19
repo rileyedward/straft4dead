@@ -1,6 +1,6 @@
 # Devlog
 
-## 2026-10-19 — Launcher 0.1.1: Unity step
+## 2026-10-19 — Launcher: Unity step and faster build (still 0.1.0)
 
 **Changed**
 - Unity Hub's installer URL moved (`UnityHubSetup.exe` is a 404, now `UnityHubSetup-x64.exe`). The launcher installs
