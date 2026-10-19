@@ -8,6 +8,11 @@
   the Hub deep link, and only opens or installs the Hub for the free licence. It finds the Microsoft Store Hub, editors
   under `%USERPROFILE%\Unity\Editors` and the installer's registry entry, accepts the licensing client's licence file,
   and carries on by itself once Unity is installed and licensed.
+- Faster asset build: `crowbar_decompile.ps1` closes Crowbar as soon as its Decompile button comes back (Crowbar
+  needs 2-8 s per animation set; the old fixed waits took ~30 s each), and the Blender exports in
+  `build_infected/survivors/specials.py` run side by side (up to 4; a model and its animation set, which share a
+  folder, in separate rounds). Before Unity, the build went from ~5.5 min to ~2 min on this PC; the exported FBX
+  and textures match the old build's.
 
 ## 2026-10-19 — Phase 7 launcher
 

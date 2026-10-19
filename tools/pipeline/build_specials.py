@@ -39,6 +39,15 @@ def blender_export(mdl, fbx, extra):
     return [l.split(" ", 2)[2].strip() for l in log.splitlines() if l.startswith("S4D material ")]
 
 
+def blender_exports(jobs):
+    """Runs several blender_export(mdl, fbx, extra) jobs side by side (each is its own Blender process, mostly
+    single-threaded) and returns their results in order."""
+    from concurrent.futures import ThreadPoolExecutor
+    workers = max(1, min(len(jobs), (os.cpu_count() or 2) // 2, 4))
+    with ThreadPoolExecutor(workers) as pool:
+        return list(pool.map(lambda job: blender_export(*job), jobs))
+
+
 def find_vmt(name):
     for root, _, files in os.walk(os.path.join(extracted, "materials")):
         for f in files:
@@ -57,19 +66,12 @@ print(run([sys.executable, "-I", os.path.join(HERE, "vpk.py"), "extract", vpk, e
           ["models/infected/%s." % m for m in SPECIALS] + ["materials/models/infected/%s/" % m for m in SPECIALS]).strip())
 
 textures_to_convert = {}
+jobs = []
 for model, clips in SPECIALS.items():
     out_dir = os.path.join(work, "fbx", "special_" + model)
     os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
     mdl = os.path.join(extracted, "models", "infected", model + ".mdl")
-    mats = blender_export(mdl, os.path.join(out_dir, model + ".fbx"), ["--no-anims", "--raw", "--armature-name", "S4D_Armature"])
-    print(model, "materials:", ", ".join(sorted(set(mats))))
-    for mat in set(mats):
-        mat = mat.replace("\\", "/").split("/")[-1]
-        vmt = find_vmt(mat)
-        tex = base_texture(vmt) if vmt else None
-        vtf = os.path.join(extracted, "materials", *tex.split("/")) + ".vtf" if tex else None
-        if vtf and os.path.exists(vtf):
-            textures_to_convert[os.path.join(out_dir, "textures", mat + ".png")] = vtf
+    jobs.append((mdl, os.path.join(out_dir, model + ".fbx"), ["--no-anims", "--raw", "--armature-name", "S4D_Armature"]))
     smd_dir = os.path.join(work, "crowbar", "anim_%s_anims" % model)
     smd_args = []
     for state, smd in clips.items():
@@ -78,7 +80,20 @@ for model, clips in SPECIALS.items():
             smd_args += ["--smd", path]
         else:
             print("  missing clip", state, smd)
-    blender_export(mdl, os.path.join(out_dir, "anims.fbx"), ["--no-anims", "--raw", "--armature-name", "S4D_Armature"] + smd_args)
+    jobs.append((mdl, os.path.join(out_dir, "anims.fbx"), ["--no-anims", "--raw", "--armature-name", "S4D_Armature"] + smd_args))
+# A model and its animation set share a folder (and Blender's .fbm texture folder), so they go in separate rounds.
+exported = [r for pair in zip(blender_exports(jobs[0::2]), blender_exports(jobs[1::2])) for r in pair]
+for i, (model, clips) in enumerate(SPECIALS.items()):
+    out_dir = os.path.join(work, "fbx", "special_" + model)
+    mats = exported[2 * i]
+    print(model, "materials:", ", ".join(sorted(set(mats))))
+    for mat in set(mats):
+        mat = mat.replace("\\", "/").split("/")[-1]
+        vmt = find_vmt(mat)
+        tex = base_texture(vmt) if vmt else None
+        vtf = os.path.join(extracted, "materials", *tex.split("/")) + ".vtf" if tex else None
+        if vtf and os.path.exists(vtf):
+            textures_to_convert[os.path.join(out_dir, "textures", mat + ".png")] = vtf
     print(model, "clips:", ", ".join(clips))
 
 tmp = os.path.join(work, "fbx", "_vtf_tmp")

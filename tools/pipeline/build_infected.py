@@ -39,6 +39,15 @@ def blender_export(mdl, fbx, extra):
     return [l.split(" ", 2)[2].strip() for l in log.splitlines() if l.startswith("S4D material ")]
 
 
+def blender_exports(jobs):
+    """Runs several blender_export(mdl, fbx, extra) jobs side by side (each is its own Blender process, mostly
+    single-threaded) and returns their results in order."""
+    from concurrent.futures import ThreadPoolExecutor
+    workers = max(1, min(len(jobs), (os.cpu_count() or 2) // 2, 4))
+    with ThreadPoolExecutor(workers) as pool:
+        return list(pool.map(lambda job: blender_export(*job), jobs))
+
+
 def find_vmt(name):
     for root, _, files in os.walk(os.path.join(extracted, "materials")):
         for f in files:
@@ -58,9 +67,21 @@ print(run([sys.executable, "-I", os.path.join(HERE, "vpk.py"), "extract", vpk, e
 
 textures_to_convert = {}  # png path -> vtf path
 for model in MODELS:
+    os.makedirs(os.path.join(work, "fbx", "infected_" + model, "textures"), exist_ok=True)
+# The six outfits and the animation set (one armature + the L4D2 clips from Crowbar) export side by side.
+anims = os.path.join(work, "crowbar", "anim_common_anims")
+anim_dir = os.path.join(work, "fbx", "infected_anim")
+os.makedirs(anim_dir, exist_ok=True)
+smd_args = []
+for state, smd in CLIPS.items():
+    smd_args += ["--smd", os.path.join(anims, smd + ".smd")]
+exported = blender_exports([(os.path.join(extracted, "models", "infected", model + ".mdl"),
+                             os.path.join(work, "fbx", "infected_" + model, model + ".fbx"),
+                             ["--no-anims", "--raw", "--armature-name", "S4D_Armature"]) for model in MODELS] +
+                           [(os.path.join(extracted, "models", "infected", MODELS[0] + ".mdl"), os.path.join(anim_dir, "common_anims.fbx"),
+                             ["--no-anims", "--raw", "--armature-name", "S4D_Armature"] + smd_args)])[:len(MODELS)]
+for model, mats in zip(MODELS, exported):
     out_dir = os.path.join(work, "fbx", "infected_" + model)
-    os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
-    mats = blender_export(os.path.join(extracted, "models", "infected", model + ".mdl"), os.path.join(out_dir, model + ".fbx"), ["--no-anims", "--raw", "--armature-name", "S4D_Armature"])
     print(model, "materials:", ", ".join(mats))
     for mat in mats:
         mat = mat.replace("\\", "/").split("/")[-1]  # SourceIO keeps the material path in the name
@@ -86,11 +107,4 @@ for png, vtf in textures_to_convert.items():
     if os.path.exists(src):
         shutil.copyfile(src, png)
 
-anims = os.path.join(work, "crowbar", "anim_common_anims")
-anim_dir = os.path.join(work, "fbx", "infected_anim")
-os.makedirs(anim_dir, exist_ok=True)
-smd_args = []
-for state, smd in CLIPS.items():
-    smd_args += ["--smd", os.path.join(anims, smd + ".smd")]
-blender_export(os.path.join(extracted, "models", "infected", MODELS[0] + ".mdl"), os.path.join(anim_dir, "common_anims.fbx"), ["--no-anims", "--raw", "--armature-name", "S4D_Armature"] + smd_args)
 print("animation set:", ", ".join(CLIPS))

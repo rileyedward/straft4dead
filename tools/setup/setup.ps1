@@ -70,7 +70,7 @@ Set-CrowbarOutput "$Work\crowbar"
 foreach ($anim in "anim_common", "anim_hulk", "anim_boomer", "anim_witch") {
     Step "decompile $anim" { Test-Path "$Work\crowbar\${anim}_anims\*.smd" } {
         & $Python -I "$pipe\vpk.py" extract "$game\pak01_dir.vpk" "$Work\extracted\l4d2" "models/infected/$anim."
-        powershell -ExecutionPolicy Bypass -File "$pipe\crowbar_decompile.ps1" -Crowbar $Crowbar -Mdl "$Work\extracted\l4d2\models\infected\$anim.mdl" -OutDir "$Work\crowbar"
+        powershell -NoProfile -ExecutionPolicy Bypass -File "$pipe\crowbar_decompile.ps1" -Crowbar $Crowbar -Mdl "$Work\extracted\l4d2\models\infected\$anim.mdl" -OutDir "$Work\crowbar"
     }
 }
 

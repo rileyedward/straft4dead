@@ -30,6 +30,15 @@ def blender_export(mdl, fbx, extra):
     return [l.split(" ", 2)[2].strip() for l in log.splitlines() if l.startswith("S4D material ")]
 
 
+def blender_exports(jobs):
+    """Runs several blender_export(mdl, fbx, extra) jobs side by side (each is its own Blender process, mostly
+    single-threaded) and returns their results in order."""
+    from concurrent.futures import ThreadPoolExecutor
+    workers = max(1, min(len(jobs), (os.cpu_count() or 2) // 2, 4))
+    with ThreadPoolExecutor(workers) as pool:
+        return list(pool.map(lambda job: blender_export(*job), jobs))
+
+
 def find_vmt(name):
     for root, _, files in os.walk(os.path.join(extracted, "materials")):
         for f in files:
@@ -50,11 +59,17 @@ print(run([sys.executable, "-I", os.path.join(HERE, "vpk.py"), "extract", vpk, e
           ["models/weapons/arms/v_arms_%s_new." % s for s in SURVIVORS] + ["materials/models/survivors/"]).strip())
 
 textures_to_convert = {}  # png path -> vtf path
+jobs = []
 for s in SURVIVORS:
     out_dir = os.path.join(work, "fbx", "survivor_" + s)
     os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
-    mats = blender_export(os.path.join(extracted, "models", "survivors", "survivor_%s.mdl" % s), os.path.join(out_dir, "body.fbx"), ["--no-anims"])
-    mats += blender_export(os.path.join(extracted, "models", "weapons", "arms", "v_arms_%s_new.mdl" % s), os.path.join(out_dir, "arms.fbx"), ["--no-anims", "--raw"])
+    jobs.append((os.path.join(extracted, "models", "survivors", "survivor_%s.mdl" % s), os.path.join(out_dir, "body.fbx"), ["--no-anims"]))
+    jobs.append((os.path.join(extracted, "models", "weapons", "arms", "v_arms_%s_new.mdl" % s), os.path.join(out_dir, "arms.fbx"), ["--no-anims", "--raw"]))
+# Body and arms share a folder, so they go in separate rounds.
+exported = [r for pair in zip(blender_exports(jobs[0::2]), blender_exports(jobs[1::2])) for r in pair]
+for i, s in enumerate(SURVIVORS):
+    out_dir = os.path.join(work, "fbx", "survivor_" + s)
+    mats = exported[2 * i] + exported[2 * i + 1]
     print(s, "materials:", ", ".join(sorted(set(mats))))
     for mat in set(mats):
         mat = mat.replace("\\", "/").split("/")[-1]
