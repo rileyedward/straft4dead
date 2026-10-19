@@ -20,6 +20,7 @@ namespace Straft4Dead
         public ConfigEntry<float> ZombieReach { get; }
         public ConfigEntry<float> ZombieAttackInterval { get; }
         public ConfigEntry<float> WeaponDamageToZombies { get; }
+        public ConfigEntry<string> InfectedBundle { get; }
         public ConfigEntry<float> PlayerHealthMultiplier { get; }
         public ConfigEntry<bool> IncapEnabled { get; }
         public ConfigEntry<float> IncapSeconds { get; }
@@ -64,6 +65,7 @@ namespace Straft4Dead
             ZombieReach = file.Bind("Zombies", "Reach", 1.5f, "Swing reach in metres.");
             ZombieAttackInterval = file.Bind("Zombies", "AttackInterval", 1f, "Seconds between swings.");
             WeaponDamageToZombies = file.Bind("Zombies", "WeaponDamageMultiplier", 1f, "Scales STRAFTAT weapon damage against zombies (1 = a default body shot does 25 HP).");
+            InfectedBundle = file.Bind("Zombies", "InfectedBundle", "", "Full path to the s4d_infected AssetBundle (L4D2 commons built from your install). Empty or missing: placeholder capsules.");
             PlayerHealthMultiplier = file.Bind("Players", "HealthMultiplier", 1f, "Scales every player's health when they spawn (host only). 2 = 200 HP against bullets and zombies.");
             IncapEnabled = file.Bind("Players", "Incap", true, "At 0 HP go down for a few seconds (L4D2 incap: camera drop, red screen, sting) before the take ends.");
             IncapSeconds = file.Bind("Players", "IncapSeconds", 3f, "How long the incap lasts before the take ends.");

@@ -19,6 +19,8 @@ ap.add_argument("--list-anims", action="store_true")
 ap.add_argument("--no-anims", action="store_true")
 ap.add_argument("--smd", action="append", default=[], help="Crowbar-decompiled animation SMD to bake onto the armature (SourceIO's own .ani import is unreliable)")
 ap.add_argument("--fps", type=float, default=30.0)
+ap.add_argument("--raw", action="store_true", help="Keep the Source armature transform: no stand-up, no grounding (generic clips need body and animation FBX in the same space)")
+ap.add_argument("--armature-name", default=None, help="Rename the armature object (generic clips bind by path, so every outfit needs the same name)")
 args = ap.parse_args(argv)
 
 for o in list(bpy.data.objects):
@@ -32,11 +34,14 @@ bpy.ops.sourceio.mdl(
     scale=0.0254)  # 1 Source unit = 1 inch for characters (SourceIO default 0.01905 is the map scale)
 
 arms = [o for o in bpy.data.objects if o.type == "ARMATURE"]
+if args.armature_name and arms:
+    arms[0].name = args.armature_name
+    arms[0].data.name = args.armature_name
 
 # Some L4D2 models (the commons) come in lying down. Stand every body up: pelvis -> head must point +Z.
 # Skipped when baking SMD animation: SMD root motion is already in upright model space.
 import mathutils
-for arm in (arms if not args.smd else []):
+for arm in (arms if not (args.smd or args.raw) else []):
     pb = arm.pose.bones
     if "ValveBiped.Bip01_Pelvis" in pb and "ValveBiped.Bip01_Head1" in pb:
         v = (arm.matrix_world @ pb["ValveBiped.Bip01_Head1"].head) - (arm.matrix_world @ pb["ValveBiped.Bip01_Pelvis"].head)
@@ -46,8 +51,21 @@ for arm in (arms if not args.smd else []):
                 if o.parent is None:
                     o.matrix_world = q.to_matrix().to_4x4() @ o.matrix_world
             print("S4D stood up", arm.name, "was", tuple(round(c, 2) for c in v.normalized()))
+
+# Put the feet on the ground: some models come in with the pelvis at the origin. Unity treats the FBX origin as
+# the character's footprint, so shift everything up until the lowest vertex sits at z = 0.
+if not (args.smd or args.raw):
+    bpy.context.view_layer.update()
+    low = min((o.matrix_world @ v.co).z for o in bpy.data.objects if o.type == "MESH" for v in o.data.vertices)
+    if abs(low) > 0.01:
+        for o in bpy.data.objects:
+            if o.parent is None:
+                o.location.z -= low
+        print("S4D grounded: lifted by %.3f m" % -low)
 meshes = [o for o in bpy.data.objects if o.type == "MESH"]
 actions = list(bpy.data.actions)
+for mat in bpy.data.materials:
+    print("S4D material", mat.name)
 print("S4D armatures=%s meshes=%d actions=%d materials=%d images=%d" % (
     [a.name for a in arms], len(meshes), len(actions), len(bpy.data.materials), len(bpy.data.images)))
 def load_smd_animation(arm, path, scale):
@@ -82,11 +100,15 @@ def load_smd_animation(arm, path, scale):
     ad = arm.animation_data or arm.animation_data_create()
     ad.action = act
     last = {}
+    first_root_xy = {}
     for fi, fr in enumerate(frames):
         for idx, (px, py, pz, rx, ry, rz) in fr.items():
             last[idx] = (px, py, pz, rx, ry, rz)
         for idx, (px, py, pz, rx, ry, rz) in last.items():
             name = nodes.get(idx)
+            if parent.get(name, "x") is None:
+                # Root bone: keep it in place horizontally (Source x/y); the NavMeshAgent does the travelling.
+                px, py = first_root_xy.setdefault(idx, (px, py))
             pb = arm.pose.bones.get(name) if name else None
             if pb is None:
                 continue
@@ -152,6 +174,6 @@ bpy.ops.export_scene.fbx(
     filepath=os.path.abspath(args.out), use_selection=False, object_types={"ARMATURE", "MESH"},
     apply_unit_scale=True, apply_scale_options="FBX_SCALE_UNITS", axis_forward="-Z", axis_up="Y",
     add_leaf_bones=False, bake_anim=bool(actions), bake_anim_use_nla_strips=False,
-    bake_anim_use_all_actions=False, bake_anim_force_startend_keying=True,
+    bake_anim_use_all_actions=len(actions) > 1, bake_anim_force_startend_keying=True,
     path_mode="COPY", embed_textures=False, mesh_smooth_type="FACE")
 print("S4D wrote", args.out)

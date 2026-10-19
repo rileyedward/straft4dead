@@ -47,7 +47,7 @@ public static class S4DBundleBuilder
     };
 
     /// <summary>Explicit human description for a ValveBiped rig, built from the model's own rest pose.</summary>
-    static HumanDescription ValveBipedHuman(GameObject modelAsset)
+    internal static HumanDescription ValveBipedHuman(GameObject modelAsset)
     {
         // Work on a scene copy so the rest pose can be bent into a T-pose before it becomes the avatar's reference:
         // Unity measures muscles from this pose, and Source reference poses are not T-poses.

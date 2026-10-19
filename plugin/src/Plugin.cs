@@ -36,6 +36,7 @@ namespace Straft4Dead
             runtime.AddComponent<Runtime>();
             runtime.AddComponent<Dev.DevTools>();
             runtime.AddComponent<Hud.L4D2Hud>();
+            runtime.AddComponent<Zombies.InfectedAssets>();
             Dev.DevTools.LogMapScenes();
         }
     }

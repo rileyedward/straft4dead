@@ -62,6 +62,30 @@ namespace Straft4Dead.Dev
             SteamLobby.Instance.EnterExplorationMap(map);
         }
 
+        /// <summary>Perspective render of a zombie from 3 m in front, at chest height.</summary>
+        private static void CloseUp(Transform target, string path)
+        {
+            var cam = new GameObject("S4D_CloseCam").AddComponent<Camera>();
+            Vector3 fwd = target.forward; fwd.y = 0f; if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
+            var rs = target.GetComponentsInChildren<Renderer>();
+            var bounds = rs.Length > 0 ? rs[0].bounds : new Bounds(target.position + Vector3.up, Vector3.one);
+            foreach (var r in rs) bounds.Encapsulate(r.bounds);
+            Plugin.Logger.LogInfo($"[dev] close-up target bounds {bounds}");
+            cam.transform.position = bounds.center + fwd.normalized * 2.4f + Vector3.up * 0.4f;
+            cam.transform.LookAt(bounds.center);
+            cam.fieldOfView = 55f;
+            var rt = new RenderTexture(1280, 720, 24);
+            cam.targetTexture = rt;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+            RenderTexture.active = null;
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Destroy(cam.gameObject); Destroy(rt); Destroy(tex);
+            Plugin.Logger.LogInfo($"[dev] close-up of {target.name} -> {path}");
+        }
+
         /// <summary>Orthographic top-down render of the map (with the cyan navmesh if Dev.DrawNavMesh) for checking coverage.</summary>
         private static void OverheadShot(string path)
         {
@@ -162,7 +186,8 @@ namespace Straft4Dead.Dev
             // Real shots reach TriggerEnvironment only if the gun's environment raycast mask includes the zombie layer.
             foreach (var w in Resources.FindObjectsOfTypeAll<Weapon>().GroupBy(w => w.GetType()).Select(g => g.First()))
                 Plugin.Logger.LogInfo($"[dev] {w.GetType().Name} '{w.name}': environment mask includes zombie layer = {((w.defaultLayer.value >> Zombie.Layer) & 1) == 1}, player mask {w.playerLayer.value:X}");
-            var head = zombie.transform.Find(Zombie.HeadName).gameObject;
+            var head = zombie.GetComponentsInChildren<Collider>().First(c => c.name == Zombie.HeadName).gameObject;
+            CloseUp(zombie.transform, Path.Combine(dir, "s4d_phase3_closeup.png"));
             for (int i = 0; i < 4 && !zombie.IsDead; i++)
             {
                 Plugin.Logger.LogInfo($"[dev] self-test: {weapon.name} (damage {weapon.damage}, head x{weapon.headMultiplier}) -> {zombie.name} head");
