@@ -22,6 +22,7 @@ Finish and verify a phase before starting the next, then stop and check in. Loca
 | 1 | done 2026-10-18: verified in Arena_00 exploration mode (see devlog); real-gun and melee kills still to be tried by hand |
 | 2 | done 2026-10-19: health, pills, kit, incap and HUD verified (see devlog); PvP incap untested |
 | 3 | done 2026-10-19: six outfits, palette shader, 7 L4D2 clips, 254 sounds (see devlog) |
-| 4–8 | not started |
+| 4 | done 2026-10-19: 4 survivors' arms, bodies (incl. ragdolls), voice lines (see devlog) |
+| 5–8 | not started |
 
 Details live in `docs/devlog.md`.

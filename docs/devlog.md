@@ -1,5 +1,32 @@
 # Devlog
 
+## 2026-10-19 — Phase 4 (Survivors: arms, bodies, voice)
+
+**Changed**
+- All four L4D2 survivors (Ellis, Nick, Rochelle, Coach) are built into an `s4d_survivors` bundle (`tools/pipeline/build_survivors.py` → `S4DSurvivorBuilder.Build`). `[HUD] Survivor` now picks the arms, body, voice and portrait together; `[Survivors]` has Bundle, Arms, Bodies, Voice toggles.
+- First-person arms (`SurvivorArms`): STRAFTAT's Aboubi arms stay in place, hidden, and keep running their animator and gun IK; every frame their pose is copied onto the L4D2 viewmodel arms. Rotations go through anatomical frames built the same way on both rigs (bone direction rolled by the elbow bend or knuckle line), shoulders, elbows and wrists are copied in position, the hands are scaled to match the grip.
+- Third-person bodies (`SurvivorBody`): humanoid-to-humanoid retarget with `HumanPoseHandler` from each player's Aboubi, and from death ragdolls (their own humanoid avatar; the pelvis is pinned to the ragdoll hips). The Aboubi is hidden with `forceRenderingOff` so the game's own show/hide (your own body, dismemberment) still decides when the survivor shows.
+- Voice (`SurvivorVoice`): the survivor's own L4D2 lines for hurt (minor/major/critical), pills, first aid, incap, death and every few zombie kills, loaded from `sound/player/survivor/voice/<survivor>`.
+- `AutoTestMode=arms` dumps the arm and body rigs, picks up a map weapon and renders arms and body.
+
+**Verified in game (Arena_00, AutoTest)**
+- Ellis's and Rochelle's arms holding a pistol in first person; Ellis and Rochelle bodies standing with the gun pose; Ellis as a death ragdoll; voice lines fire for damage, pills, medkit, incap and bleed-out; the zombie test still passes with everything on.
+
+**Broke / learned**
+- STRAFTAT's arm rig is camera-space, layer 8 (drawn by `WeaponCam`), armature scaled 100 under a ×2 parent; its fingers have two segments, L4D2's three.
+- The local player's third-person renderers are disabled by the game (never `forceRenderingOff`), which is how we know to keep the survivor hidden too.
+- `build_*.py` must pass Blender an absolute work dir: relative image save paths resolved elsewhere and the textures silently went missing.
+- The HUD portraits for Nick, Rochelle and Coach (`s_panel_<survivor>[_incap]`) were missing from the HUD folder; converted now.
+
+**Known gaps**
+- The third-person gun stays on the hidden Aboubi's hand, so it can sit slightly off the survivor's hand (only other players see this; check in Phase 8).
+- Remote players use your own `Survivor` choice until multiplayer syncs it (Phase 8).
+- Survivor normal maps and phong aren't used (Standard shader, base texture only).
+
+**Next**
+- Phase 5: director-lite.
+
+
 ## 2026-10-19 — Phase 3 (Real common infected)
 
 **Changed**

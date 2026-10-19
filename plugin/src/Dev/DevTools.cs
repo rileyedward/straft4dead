@@ -163,6 +163,21 @@ namespace Straft4Dead.Dev
             Log("after lethal damage");
             ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_e_incap.png"));
             yield return new WaitForSeconds(Plugin.Settings.IncapSeconds.Value + 1.5f);
+            Survivors.SurvivorBody.ForceVisible = true;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            foreach (var go in FindObjectsOfType<Transform>().Where(t => t.name.Contains("Ragdoll") && t.parent == null))
+            {
+                var parts = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                var ours = FindObjectsOfType<Survivors.SurvivorBody>().FirstOrDefault(b => b.transform == go)?.Body;
+                Plugin.Logger.LogInfo($"[dev] ragdoll parts on [{string.Join(", ", parts.Select(r => r.name + "=" + (r.enabled && r.gameObject.activeInHierarchy)))}], survivor body {(ours ? ours.transform.position.ToString() : "none")}, ragdoll bounds {(parts.Length > 0 ? parts[0].bounds.ToString() : "-")}, ours bounds {(ours ? ours.GetComponentInChildren<SkinnedMeshRenderer>().bounds.ToString() + " on=" + ours.GetComponentInChildren<SkinnedMeshRenderer>().enabled + " L" + ours.GetComponentInChildren<SkinnedMeshRenderer>().gameObject.layer : "-")}, cam pos {Camera.main?.transform.position}");
+                var an = go.GetComponentInChildren<Animator>(true);
+                var hips = go.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Hips") ?? go;
+                Plugin.Logger.LogInfo($"[dev] ragdoll root scale {go.lossyScale}, hips {hips.position}");
+                RenderView(hips.position + new Vector3(1.2f, 2.2f, 1.2f), hips.position, System.IO.Path.Combine(dir, "s4d_phase4_ragdoll.png"));
+                Plugin.Logger.LogInfo($"[dev] ragdoll {go.name} active {go.gameObject.activeInHierarchy} at {go.position}: animator {(an ? TPath(an.transform) + " avatar " + (an.avatar ? an.avatar.name + " human=" + an.avatar.isHuman : "none") + " enabled " + an.enabled : "none")}, SMRs {go.GetComponentsInChildren<SkinnedMeshRenderer>().Length}, children [{string.Join(", ", Enumerable.Range(0, go.childCount).Select(i => go.GetChild(i).name))}]");
+            }
+            Survivors.SurvivorBody.ForceVisible = false;
             Plugin.Logger.LogInfo($"[dev] health test end: player killed={me != null && me.Player != null && me.Player.sync___get_value_isKilled()}");
             ScreenCapture.CaptureScreenshot(Path.Combine(dir, "s4d_phase2_f_after.png"));
         }
@@ -197,6 +212,19 @@ namespace Straft4Dead.Dev
                     Plugin.Logger.LogInfo($"[dev]   SMR {r.name} on={r.enabled && r.gameObject.activeInHierarchy} mats [{string.Join(", ", r.sharedMaterials.Select(m => m ? m.name + "/" + m.shader.name : "null"))}] root {r.rootBone?.name} bones [{string.Join(", ", r.bones.Select(b => b ? b.name : "null"))}]");
                 foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
                     Plugin.Logger.LogInfo($"[dev]   MR {r.name} on={r.enabled && r.gameObject.activeInHierarchy}");
+            }
+            // Third-person body recon (Phase 4 bodies).
+            var playerRoot = setup.transform.root;
+            foreach (var an in playerRoot.GetComponentsInChildren<Animator>(true))
+                Plugin.Logger.LogInfo($"[dev] body: animator {TPath(an.transform)} avatar {(an.avatar ? an.avatar.name + " human=" + an.avatar.isHuman : "none")} ctrl {an.runtimeAnimatorController?.name} cull {an.cullingMode} active {an.isActiveAndEnabled}");
+            foreach (var r in playerRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                if (r.gameObject.layer != 8)
+                    Plugin.Logger.LogInfo($"[dev] body: SMR {TPath(r.transform)} L{r.gameObject.layer} on={r.enabled && r.gameObject.activeInHierarchy} shadows {r.shadowCastingMode} root {r.rootBone?.name}");
+            var ph = playerRoot.GetComponentInChildren<PlayerHealth>(true);
+            if (ph != null)
+            {
+                var rag = HarmonyLib.Traverse.Create(ph).Field("aboubiRagdoll").GetValue();
+                Plugin.Logger.LogInfo($"[dev] body: PlayerHealth on {TPath(ph.transform)}, aboubiRagdoll {rag} ({rag?.GetType().Name})");
             }
             foreach (var cam in FindObjectsOfType<Camera>())
                 Plugin.Logger.LogInfo($"[dev] camera {TPath(cam.transform)} depth {cam.depth} mask {cam.cullingMask:X} fov {cam.fieldOfView:F0} near {cam.nearClipPlane}");
@@ -250,7 +278,63 @@ namespace Straft4Dead.Dev
                 ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "s4d_phase4_arms_gun.png"));
                 yield return new WaitForSeconds(1f);
             }
+
+            // Third-person body: your own is hidden from you, so force it on and render it from the front.
+            var sb = playerRoot.GetComponentInChildren<Survivors.SurvivorBody>();
+            if (sb != null && sb.Body != null)
+            {
+                var aboubiParts = sb.GetComponentsInChildren<SkinnedMeshRenderer>(true).Select(r => (r, r.enabled)).ToList();
+                foreach (var (original, file) in new[] { (true, "s4d_phase4_body_straftat.png"), (false, "s4d_phase4_body_l4d2.png") })
+                {
+                    Survivors.SurvivorBody.ShowOriginal = original;
+                    Survivors.SurvivorBody.ForceVisible = true;
+                    foreach (var (r, _) in aboubiParts) r.enabled = original;
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    var body = sb.transform;
+                    var cam = new GameObject("S4D_BodyCam").AddComponent<Camera>();
+                    Vector3 fwd = Vector3.ProjectOnPlane(setup.transform.forward, Vector3.up).normalized;
+                    Vector3 front = Quaternion.Euler(0f, 25f, 0f) * fwd;
+                    cam.transform.position = body.position + front * 2.6f + Vector3.up * 1.3f;
+                    cam.transform.LookAt(body.position + Vector3.up * 0.9f);
+                    cam.fieldOfView = 50f;
+                    cam.nearClipPlane = 0.05f;
+                    cam.cullingMask &= ~(1 << 8); // not the first-person arms
+                    var rt = new RenderTexture(1280, 720, 24);
+                    cam.targetTexture = rt;
+                    cam.Render();
+                    RenderTexture.active = rt;
+                    var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+                    tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                    RenderTexture.active = null;
+                    File.WriteAllBytes(System.IO.Path.Combine(dir, file), tex.EncodeToPNG());
+                    Destroy(cam.gameObject); Destroy(rt); Destroy(tex);
+                }
+                foreach (var (r, was) in aboubiParts) r.enabled = was;
+                Survivors.SurvivorBody.ShowOriginal = false;
+                Survivors.SurvivorBody.ForceVisible = false;
+                Plugin.Logger.LogInfo($"[dev] arms test: body renders written (body at {sb.Body.transform.position}, aboubi at {sb.transform.position})");
+            }
             Plugin.Logger.LogInfo("[dev] arms test: screenshot s4d_phase4_arms.png");
+        }
+
+        private static void RenderView(Vector3 from, Vector3 at, string path)
+        {
+            var cam = new GameObject("S4D_DevCam").AddComponent<Camera>();
+            cam.transform.position = from;
+            cam.transform.LookAt(at);
+            cam.fieldOfView = 55f;
+            cam.nearClipPlane = 0.05f;
+            cam.cullingMask &= ~(1 << 8);
+            var rt = new RenderTexture(1280, 720, 24);
+            cam.targetTexture = rt;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+            RenderTexture.active = null;
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Destroy(cam.gameObject); Destroy(rt); Destroy(tex);
         }
 
         private static string TPath(Transform t) => t.parent == null ? t.name : TPath(t.parent) + "/" + t.name;

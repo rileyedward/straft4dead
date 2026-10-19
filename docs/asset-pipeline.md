@@ -112,3 +112,18 @@ Unity.exe -batchmode -quit -projectPath unity\S4DBundles -executeMethod S4DInfec
 - Materials: one `S4D/Infected` material per base texture, palette assigned; rows are randomised per zombie at runtime through a MaterialPropertyBlock.
 - **Don't pass `-nographics`** to the bundle build: custom shaders then ship without compiled programs and render magenta.
 - Sounds aren't bundled: the plugin loads `<L4D2>\left4dead2\sound\npc\infected\…` at startup, skipping special variants (CEDA, mud men, clowns, riot, Jimmy Gibbs, fallen survivors).
+
+## Survivors (Phase 4)
+
+```
+python -I tools\pipeline\build_survivors.py "<L4D2>\left4dead2" <work dir> <blender.exe>
+Unity.exe -batchmode -quit -projectPath unity\S4DBundles -executeMethod S4DSurvivorBuilder.Build -s4dSource <work>\fbx -s4dOut <bundles>
+```
+
+- Per survivor (mechanic, gambler, producer, coach): `survivor_<name>.mdl` exported stood up for a Humanoid avatar (same ValveBiped map and T-pose as Phase 0), and `v_arms_<name>_new.mdl` exported `--raw` (Generic; the plugin poses it bone by bone).
+- One Standard material per base texture (the arms share the body texture); hair uses alpha cutout; eyes use the `$iris` texture.
+- Point `[Survivors] Bundle` at `<bundles>\s4d_survivors`. Voice lines aren't bundled: they load from `<L4D2>\left4dead2\sound\player\survivor\voice\<name>` (`[HUD] L4D2SoundDir`).
+
+## HUD textures (Phase 2, portraits added in Phase 4)
+
+`[HUD] TextureDir` holds PNGs converted from `materials/vgui/` with `vtf_to_png.py`: `healthbar_*`, `inventory_*`, `s_panel_*` (including `s_panel_<survivor>` and `s_panel_<survivor>_incap` for all four survivors).

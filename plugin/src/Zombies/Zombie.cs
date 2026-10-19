@@ -168,6 +168,7 @@ namespace Straft4Dead.Zombies
             }
             Destroy(gameObject, 6f);
             ZombieDirector.Kills++;
+            Survivors.SurvivorVoice.Kill();
             Plugin.Logger.LogInfo($"[zombies] {name} died (kills this map: {ZombieDirector.Kills})");
         }
 

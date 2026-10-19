@@ -85,6 +85,7 @@ namespace Straft4Dead.Survivors
                 Temporary -= fromTemp;
                 Permanent = Mathf.Max(0f, Permanent - (dmg - fromTemp));
                 _healStart = -1f; // taking damage interrupts healing
+                SurvivorVoice.Hurt(this, dmg);
             }
             else if (delta > 0.001f)
                 Permanent = Mathf.Min(Max, Permanent + delta);
@@ -139,6 +140,7 @@ namespace Straft4Dead.Survivors
             Pills--;
             Temporary = Mathf.Min(Max - Permanent, Temporary + 50f);
             Push();
+            SurvivorVoice.Say(this, "pills", interrupt: true);
             Plugin.Logger.LogInfo($"[health] pills: {Permanent:F0} + {Temporary:F0} temp");
             return true;
         }
@@ -148,7 +150,10 @@ namespace Straft4Dead.Survivors
             if (!holding || Incapacitated || Medkits <= 0 || Permanent >= Max - 0.5f)
                 _healStart = -1f;
             else if (_healStart < 0f)
+            {
                 _healStart = Time.time;
+                SurvivorVoice.Say(this, "firstaid", interrupt: true);
+            }
         }
 
         /// <summary>Called by HealthPatches when a write would take health to zero or below.</summary>
@@ -162,12 +167,14 @@ namespace Straft4Dead.Survivors
             Permanent = 0f;
             Temporary = 0f;
             _lastGameHp = 0.01f;
+            SurvivorVoice.Say(this, "incap", interrupt: true);
             Plugin.Logger.LogInfo($"[health] {Player.transform.root.name} incapacitated for {Plugin.Settings.IncapSeconds.Value:F1} s");
         }
 
         private void FinishIncap()
         {
             Finishing = true;
+            SurvivorVoice.Say(this, "death", interrupt: true);
             Writing = true;
             try { Player.sync___set_value_health(0f, true); } // PlayerHealth.Update now runs the normal death: the take ends
             finally { Writing = false; }

@@ -38,6 +38,7 @@ namespace Straft4Dead
             runtime.AddComponent<Hud.L4D2Hud>();
             runtime.AddComponent<Zombies.InfectedAssets>();
             runtime.AddComponent<Survivors.SurvivorAssets>();
+            runtime.AddComponent<Survivors.SurvivorVoice>();
             Dev.DevTools.LogMapScenes();
         }
     }
@@ -59,14 +60,23 @@ namespace Straft4Dead
                 OnSceneLoaded(active, LoadSceneMode.Single);
         }
 
-        private float _nextSurvivorScan;
+        private float _nextArmsScan, _nextBodyScan;
 
         private void Update()
         {
-            // Players (and their first-person arms) spawn per take; look for new ones once a second.
-            if (Time.unscaledTime < _nextSurvivorScan || !Plugin.Settings.Enabled.Value) return;
-            _nextSurvivorScan = Time.unscaledTime + 1f;
-            Survivors.SurvivorArms.AttachAll();
+            // Players (and their first-person arms) spawn per take and ragdolls on every death; look for new ones.
+            // Bodies are checked often so a fresh ragdoll never shows the Aboubi for long.
+            if (!Plugin.Settings.Enabled.Value) return;
+            if (Time.unscaledTime >= _nextArmsScan)
+            {
+                _nextArmsScan = Time.unscaledTime + 1f;
+                Survivors.SurvivorArms.AttachAll();
+            }
+            if (Time.unscaledTime >= _nextBodyScan)
+            {
+                _nextBodyScan = Time.unscaledTime + 0.1f;
+                Survivors.SurvivorBody.AttachAll();
+            }
         }
 
         private void OnDestroy()
