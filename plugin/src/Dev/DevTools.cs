@@ -44,13 +44,16 @@ namespace Straft4Dead.Dev
             {
                 _selfTested = true;
                 var mode = Plugin.Settings.DevAutoTestMode.Value;
-                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : mode == "specials" ? SpecialsTest() : mode == "panel" ? PanelTest() : SelfTest());
+                StartCoroutine(mode == "health" ? HealthTest() : mode == "arms" ? ArmsTest() : mode == "director" ? DirectorTest() : mode == "specials" ? SpecialsTest() : mode == "panel" ? PanelTest() : mode == "lan" ? LanHostTest() : SelfTest());
             }
         }
 
         private IEnumerator AutoEnter()
         {
             yield return new WaitForSeconds(6f);
+            while (!Net.DevNet.Ready) yield return new WaitForSeconds(1f); // LAN test: wait for the Tugboat NetworkManager
+            if (Net.DevNet.IsClientRole) yield break;
+            yield return new WaitForSeconds(3f);
             EnterTestMap();
         }
 
@@ -64,7 +67,7 @@ namespace Straft4Dead.Dev
         }
 
         /// <summary>Perspective render of a zombie from 3 m in front, at chest height.</summary>
-        private static void CloseUp(Transform target, string path)
+        internal static void CloseUp(Transform target, string path)
         {
             var cam = new GameObject("S4D_CloseCam").AddComponent<Camera>();
             Vector3 fwd = target.forward; fwd.y = 0f; if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
@@ -227,6 +230,58 @@ namespace Straft4Dead.Dev
                 Plugin.Logger.LogInfo("[sweep] " + line.Replace('\t', ' '));
             }
             Plugin.Logger.LogInfo("[sweep] done");
+        }
+
+        /// <summary>Phase 8 host test (run with --s4d-lan host and the client copy): wait for the client, then hurt it,
+        /// cover it in bile, put both players on one team, down the client and revive it from the host, logging what
+        /// the host sees; the client copy logs and screenshots its side (DevNet).</summary>
+        private IEnumerator LanHostTest()
+        {
+            string dir = BepInEx.Paths.BepInExRootPath;
+            PlayerHealth other = null;
+            for (int i = 0; i < 240 && other == null; i++)
+            {
+                yield return new WaitForSeconds(1f);
+                other = FindObjectsOfType<PlayerHealth>().FirstOrDefault(p => !p.IsOwner && Net.NetSync.SurvivorOf.ContainsKey(p.OwnerId));
+                if (i % 10 == 9) Plugin.Logger.LogInfo($"[dev] lan waiting: players [{string.Join(", ", FindObjectsOfType<PlayerHealth>().Select(p => $"owner {p.OwnerId} isOwner {p.IsOwner}"))}], survivors [{string.Join(", ", Net.NetSync.SurvivorOf.Select(kv => kv.Key + "=" + kv.Value))}]");
+            }
+            var me = Survivors.SurvivorHealth.Local;
+            if (other == null || me == null) { Plugin.Logger.LogWarning("[dev] lan: no client joined"); yield break; }
+            var them = Survivors.SurvivorHealth.For(other);
+            void Log(string step) => Plugin.Logger.LogInfo($"[dev] lan {step}: client {them.Permanent:F0}+{them.Temporary:F0} incap {them.Incapacitated} revive {them.ReviveProgress:F2}, survivor {Net.NetSync.SurvivorFor(other)}, zombies {Zombie.Alive}");
+            Log("client joined");
+            yield return new WaitForSeconds(4f);
+            CloseUp(other.transform, System.IO.Path.Combine(dir, "s4d_phase8_host_sees_client.png"));
+
+            GameAccess.DamagePlayer(other, 30f, "lan test");
+            yield return new WaitForSeconds(1.5f);
+            Log("after 30 damage");
+            Boomer.Bile(other);
+            yield return new WaitForSeconds(3f);
+            Log("after bile");
+
+            // 2v2: same team, then down the client and revive it from the host.
+            GameManager.Instance.sync___set_value_playingTeams(true, true);
+            int Pid(PlayerHealth p) => p.sync___get_value_playerValues().sync___get_value_playerClient().PlayerId;
+            ScoreManager.Instance.SetTeamId(Pid(me.Player), 0);
+            ScoreManager.Instance.SetTeamId(Pid(other), 0);
+            yield return new WaitForSeconds(1f);
+            Log($"teams set (teammates {Survivors.Revives.AreTeammates(me.Player, other)})");
+            foreach (var z in FindObjectsOfType<Zombie>()) Destroy(z.gameObject); // keep the revive clean
+            GameAccess.DamagePlayer(other, 500f, "lan test");
+            yield return new WaitForSeconds(2f);
+            Log("after 500 damage");
+            var cc = me.Player.GetComponentInParent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+            me.Player.transform.root.position = other.transform.position + other.transform.right * 1.2f;
+            if (cc != null) cc.enabled = true;
+            yield return new WaitForSeconds(0.5f);
+            Plugin.Logger.LogInfo($"[dev] lan host moved: {Vector3.Distance(me.Player.transform.position, other.transform.position):F1} m from the client (root {me.Player.transform.root.name}, player at {me.Player.transform.position})");
+            Survivors.Revives.SetReviving(me.Player, true);
+            for (int i = 0; i < 12; i++) { yield return new WaitForSeconds(0.5f); Log($"reviving t={(i + 1) * 0.5f:F1}"); if (!them.Incapacitated) break; }
+            Survivors.Revives.SetReviving(me.Player, false);
+            Log("after revive");
+            Plugin.Logger.LogInfo("[dev] lan test end");
         }
 
         /// <summary>Phase 7 test: open the panel, switch the mode off and on, change survivor and horde size live,

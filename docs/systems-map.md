@@ -172,7 +172,25 @@ Terminology as the game uses it: a **take** is one life-to-death exchange (`Take
 
 ## 13. Re-running the REA pass
 
-1. In Claude Code with the REA MCP server: `inspect_managed_members` on `STRAFTAT_Data\Managed\Assembly-CSharp.dll`, then `export_evidence_bundle` to `…\straft4dead-research\rea\assembly-csharp-evidence.json`.
+1. With the REA MCP server: `inspect_managed_members` on `STRAFTAT_Data\Managed\Assembly-CSharp.dll`, then `export_evidence_bundle` to `…\straft4dead-research\rea\assembly-csharp-evidence.json`.
 2. `python -I tools/rea/rea_index.py <bundle> idx` writes `types.txt` and one `members/<Type>.txt` per type (fields, methods, callees).
 3. `python -I tools/rea/rea_method.py <bundle> Type.Method` prints one method's calls, field accesses and string literals in IL order.
 4. Compare the SHA-256 above; if it changed, diff `types.txt` and re-check every hook in §11.
+
+## 10. Networking (Phase 8)
+
+- FishNet with `FishySteamworks` as the NetworkManager's only transport (Tugboat, Multipass and Yak exist in
+  `FishNet.Runtime` but aren't on the object). `SteamLobby` calls `_fishySteamworks.StartConnection/SetClientAddress`
+  directly in `OnLobbyCreated`/`OnLobbyEntered`, then spawns the SceneMotor. [IL]
+- `ClientInstance.nonSteamworksTransport` = the active transport isn't FishySteamworks; STRAFTAT skips its round-start
+  wait in that case (its own dev path). `ClientInstance.SetSyncValues` parses the SteamID from
+  `NetworkConnection.GetAddress()`; unparsable addresses stop the player from being registered. [IL]
+- `SceneMotor.EnterScene` (server RPC): host with more than one Steam lobby member → global scene load; alone →
+  `LoadConnectionScenes` for the host only. [IL]
+- `PlayerHealth.health` is a server-only SyncVar; `RemoveHealth` is a ServerRpc(RunLocally) that writes it and fires
+  hit feedback. Shots run on the shooter's machine only (`Gun.ShootServer` is a local method). [IL]
+- Teams: `ScoreManager.PlayerIdToTeamId` (SyncDictionary) and `GameManager.playingTeams` (SyncVar); a player's id is
+  `PlayerHealth.playerValues.playerClient.PlayerId`. [IL]
+- `PlayerSetup` disables remote players' `PlayerHealth` component on every machine. [runtime]
+- Unity `forceSingleInstance` is on; the mutex is `…-STRAFTAT-STRAFTAT-exe-SingleInstanceMutex-Default`, derived from
+  the exe path. [runtime]

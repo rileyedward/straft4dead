@@ -22,6 +22,7 @@ namespace Straft4Dead
         public ConfigEntry<float> ZombieAttackInterval { get; }
         public ConfigEntry<float> WeaponDamageToZombies { get; }
         public ConfigEntry<string> InfectedBundle { get; }
+        public ConfigEntry<float> ZombieStrength { get; }
         public ConfigEntry<float> MaxBakeSize { get; }
         public ConfigEntry<float> PlayerHealthMultiplier { get; }
         public ConfigEntry<bool> IncapEnabled { get; }
@@ -32,6 +33,9 @@ namespace Straft4Dead
         public ConfigEntry<float> MedkitSeconds { get; }
         public ConfigEntry<string> PillsKey { get; }
         public ConfigEntry<string> MedkitKey { get; }
+        public ConfigEntry<float> TeamIncapSeconds { get; }
+        public ConfigEntry<float> ReviveSeconds { get; }
+        public ConfigEntry<string> ReviveKey { get; }
 
         public ConfigEntry<bool> HudEnabled { get; }
         public ConfigEntry<string> HudTextureDir { get; }
@@ -95,6 +99,7 @@ namespace Straft4Dead
             ZombieAttackInterval = file.Bind("Zombies", "AttackInterval", 1f, "Seconds between swings.");
             WeaponDamageToZombies = file.Bind("Zombies", "WeaponDamageMultiplier", 4f, "Scales STRAFTAT weapon damage against zombies. 4: a body shot that would take a quarter of a player's health does 100 HP, so most guns one-shot a common (50 HP); 1 = player-equivalent damage.");
             MaxBakeSize = file.Bind("Zombies", "MaxBakeSize", 140f, "Largest area (metres per side) the zombie navmesh covers, centred on the spawn points. Keeps load time sane on huge maps; 0 = whole map.");
+            ZombieStrength = file.Bind("Zombies", "Strength", 2f, "Zombie strength: multiplies how hard commons and the Tank hit players (1 = L4D2 normal; 2 = arena pace, getting caught in a horde gets you down fast). Host setting.");
             InfectedBundle = file.Bind("Zombies", "InfectedBundle", "", "Full path to the s4d_infected AssetBundle (L4D2 commons built from your install). Empty or missing: placeholder capsules.");
             PlayerHealthMultiplier = file.Bind("Players", "HealthMultiplier", 1f, "Scales every player's health when they spawn (host only). 2 = 200 HP against bullets and zombies.");
             IncapEnabled = file.Bind("Players", "Incap", true, "At 0 HP go down for a few seconds (L4D2 incap: camera drop, red screen, sting) before the take ends.");
@@ -105,6 +110,9 @@ namespace Straft4Dead
             MedkitSeconds = file.Bind("Players", "MedkitSeconds", 5f, "Hold time to heal with a first aid kit (L4D2: 5).");
             PillsKey = file.Bind("Players", "PillsKey", "5", "Key to take pain pills (+50 temporary health). Unity Input System key name.");
             MedkitKey = file.Bind("Players", "MedkitKey", "4", "Hold to heal with a first aid kit (80% of missing health). Unity Input System key name.");
+            TeamIncapSeconds = file.Bind("Players", "TeamIncapSeconds", 20f, "Team games (2v2): how long a downed survivor takes to bleed out without help (hits while down shorten it). Solo/FFA uses IncapSeconds.");
+            ReviveSeconds = file.Bind("Players", "ReviveSeconds", 4f, "Team games: how long a teammate holds the revive key to get you up (L4D2: 5). Revived survivors get 30 temporary health.");
+            ReviveKey = file.Bind("Players", "ReviveKey", "E", "Hold over a downed teammate to revive them. Unity Input System key name.");
 
             HudEnabled = file.Bind("HUD", "Enabled", true, "Replace STRAFTAT's health and ammo display with the L4D2 survivor HUD.");
             HudTextureDir = file.Bind("HUD", "TextureDir", "", "Folder with the L4D2 HUD textures converted to PNG (healthbar_*, s_panel_*, inventory_*). Extracted from your own L4D2 install.");

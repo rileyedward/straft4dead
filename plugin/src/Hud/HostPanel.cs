@@ -103,7 +103,8 @@ namespace Straft4Dead.Hud
             if (scaling != c.FullSizeArea.Value > 0f) c.FullSizeArea.Value = scaling ? (float)c.FullSizeArea.DefaultValue : 0f;
             Slider(c.ZombieHealth, "Common health (L4D2 HP)", 10f, 200f, "F0");
             Slider(c.WeaponDamageToZombies, "Gun damage vs zombies (x)", 0.5f, 8f, "F1");
-            Slider(c.ZombieDamage, "Zombie hit damage", 1f, 25f, "F0");
+            Slider(c.ZombieStrength, "Zombie strength (how hard they hit)", 0.5f, 4f, "F1");
+            Slider(c.ZombieDamage, "Common hit damage (before strength)", 1f, 25f, "F0");
 
             GUILayout.Space(6);
             GUILayout.Label("Special infected (host)", _header);
@@ -116,7 +117,7 @@ namespace Straft4Dead.Hud
             GUILayout.Space(6);
             if (GUILayout.Button("Reset zombie settings to defaults"))
                 foreach (var e in new ConfigEntryBase[] { c.HordeSize, c.Wanderers, c.MaxAlive, c.FirstHorde, c.HordeIntervalMin, c.HordeIntervalMax,
-                             c.FullSizeArea, c.ZombieHealth, c.WeaponDamageToZombies, c.ZombieDamage, c.TankChance, c.WitchChance, c.BoomerInterval, c.TankHealth })
+                             c.FullSizeArea, c.ZombieHealth, c.WeaponDamageToZombies, c.ZombieStrength, c.ZombieDamage, c.TankChance, c.WitchChance, c.BoomerInterval, c.TankHealth })
                     e.BoxedValue = e.DefaultValue;
             GUILayout.Label($"{Plugin.Settings.PanelKey.Value.ToUpperInvariant()} closes this panel. Changes are saved to the mod's config.");
             GUILayout.EndScrollView();

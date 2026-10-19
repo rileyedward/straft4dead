@@ -29,6 +29,8 @@ namespace Straft4Dead.Survivors
             { "laugh", new[] { "laughter", "hurrah" } },
             { "incoming", new[] { "incoming" } },
             { "biled", new[] { "boomerreaction" } },
+            { "revive", new[] { "revivefriend", "revivefrienda", "revivefriendb" } },
+            { "thanks", new[] { "thanks" } },
             { "warn_tank", new[] { "warntank" } },
             { "warn_boomer", new[] { "warnboomer" } },
             { "warn_witch", new[] { "warnwitch" } },
@@ -37,7 +39,6 @@ namespace Straft4Dead.Survivors
         private readonly Dictionary<string, List<AudioClip>> _lines = new Dictionary<string, List<AudioClip>>();
         private AudioSource _source;
         private float _busyUntil;
-        private int _killsSinceLine;
         private string _loadedFor;
 
         private void Awake()
@@ -83,13 +84,34 @@ namespace Straft4Dead.Survivors
             Plugin.Logger.LogInfo($"[voice] {survivor}: {string.Join(", ", _lines.Select(kv => kv.Key + "=" + kv.Value.Count))}");
         }
 
-        /// <summary>Play a line for this concept if the survivor is free (or interrupt when it matters).</summary>
+        /// <summary>A line for this survivor's concept. On the host, a survivor whose game runs elsewhere gets it sent
+        /// to their client (Phase 8); everything else plays here if the local survivor is free (or interrupts).</summary>
         internal static void Say(SurvivorHealth who, string concept, bool interrupt = false, float chance = 1f)
         {
+            if (Instance == null || who == null || !Plugin.Settings.SurvivorVoice.Value || !Plugin.Settings.Enabled.Value) return;
+            if (Random.value > chance) return;
+            if (who != SurvivorHealth.Local)
+            {
+                Net.NetSync.VoiceForRemote(who.Player, concept, interrupt);
+                return;
+            }
+            PlayLocal(concept, interrupt);
+        }
+
+        /// <summary>Every survivor says it (the horde is coming, a Tank is here).</summary>
+        internal static void SayEveryone(string concept, bool interrupt = false, float chance = 1f)
+        {
+            foreach (var s in SurvivorHealth.All.ToArray())
+                Say(s, concept, interrupt, chance);
+        }
+
+        /// <summary>Play one of the local survivor's lines for this concept.</summary>
+        internal static void PlayLocal(string concept, bool interrupt)
+        {
             var v = Instance;
-            if (v == null || !Plugin.Settings.SurvivorVoice.Value || !Plugin.Settings.Enabled.Value || who == null || who != SurvivorHealth.Local) return;
+            if (v == null || !Plugin.Settings.SurvivorVoice.Value || !Plugin.Settings.Enabled.Value) return;
             v.EnsureLoaded();
-            if ((!interrupt && Time.time < v._busyUntil) || Random.value > chance) return;
+            if (!interrupt && Time.time < v._busyUntil) return;
             if (!v._lines.TryGetValue(concept, out var list) || list.Count == 0) return;
             var clip = list[Random.Range(0, list.Count)];
             v._source.Stop();
@@ -106,13 +128,16 @@ namespace Straft4Dead.Survivors
             Say(who, concept, chance: damage >= 10f ? 1f : 0.5f);
         }
 
-        /// <summary>Every few common kills the survivor confirms one (or laughs on a streak).</summary>
-        internal static void Kill()
+        private static readonly Dictionary<PlayerHealth, int> KillsSinceLine = new Dictionary<PlayerHealth, int>();
+
+        /// <summary>Every few kills a survivor confirms one (or laughs on a streak).</summary>
+        internal static void KillBy(PlayerHealth killer)
         {
-            if (Instance == null) return;
-            if (++Instance._killsSinceLine < Random.Range(4, 8)) return;
-            Instance._killsSinceLine = 0;
-            Say(SurvivorHealth.Local, Random.value < 0.75f ? "kill" : "laugh");
+            if (killer == null) return;
+            KillsSinceLine.TryGetValue(killer, out int n);
+            if (++n < Random.Range(4, 8)) { KillsSinceLine[killer] = n; return; }
+            KillsSinceLine[killer] = 0;
+            Say(SurvivorHealth.For(killer), Random.value < 0.75f ? "kill" : "laugh");
         }
     }
 }

@@ -164,8 +164,10 @@ namespace Straft4Dead.Hud
             _pillsCount.text = me.Pills > 1 ? me.Pills.ToString() : "";
             _ammoText.text = AmmoText(me.Player);
 
-            _healBar.gameObject.SetActive(me.HealProgress > 0f);
-            SetWidth(_healFill, 352f * me.HealProgress, 4f);
+            // One progress bar for healing yourself, being revived, or reviving a teammate.
+            float bar = Mathf.Max(me.HealProgress, me.ReviveProgress, Revives.LocalReviveProgress);
+            _healBar.gameObject.SetActive(bar > 0f);
+            SetWidth(_healFill, 352f * bar, 4f);
 
             // Incap: portrait swap, red screen, camera drop, sting, movement lock.
             _portrait.sprite = S("s_panel_" + Plugin.Settings.SurvivorName.Value + (me.Incapacitated ? "_incap" : "")) ?? _portrait.sprite;
@@ -179,7 +181,7 @@ namespace Straft4Dead.Hud
             float bile = Mathf.Clamp01((Zombies.Boomer.LocalBiledUntil - Time.time) / 4f);
             if (bile > 0f && !me.Incapacitated)
                 _redOverlay.color = new Color(0.32f, 0.42f, 0.08f, 0.55f * bile + 0.05f * Mathf.Sin(Time.time * 3f) * bile);
-            _incapText.text = me.Incapacitated ? "YOU'RE INCAPACITATED" : "";
+            _incapText.text = me.Incapacitated ? (me.ReviveProgress > 0f ? "BEING REVIVED" : "YOU'RE INCAPACITATED") : Revives.Prompt ?? "";
             IncapView(me);
         }
 

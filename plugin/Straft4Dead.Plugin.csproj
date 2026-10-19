@@ -10,7 +10,7 @@
     <BepInExPluginName>Straft 4 Dead</BepInExPluginName>
     <Product>Straft 4 Dead</Product>
     <Description>Left 4 Dead 2 hordes, survivors and HUD inside STRAFTAT (local play, private lobbies only)</Description>
-    <Version>0.0.1</Version>
+    <Version>0.8.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <RestoreAdditionalProjectSources>
@@ -53,6 +53,7 @@
     <Reference Include="Unity.InputSystem"><HintPath>$(StraftatManaged)\Unity.InputSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Animation.Rigging"><HintPath>$(StraftatManaged)\Unity.Animation.Rigging.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>$(StraftatManaged)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="com.rlabrecque.steamworks.net"><HintPath>$(StraftatManaged)\com.rlabrecque.steamworks.net.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="FishNet.Runtime"><HintPath>$(StraftatManaged)\FishNet.Runtime.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 

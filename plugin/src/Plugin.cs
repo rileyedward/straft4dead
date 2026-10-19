@@ -41,6 +41,8 @@ namespace Straft4Dead
             runtime.AddComponent<Zombies.SoundBank>();
             runtime.AddComponent<Survivors.SurvivorAssets>();
             runtime.AddComponent<Survivors.SurvivorVoice>();
+            runtime.AddComponent<Survivors.Revives>();
+            runtime.AddComponent<Net.NetSync>();
             Dev.DevTools.LogMapScenes();
         }
     }
@@ -91,6 +93,7 @@ namespace Straft4Dead
         {
             var cfg = Plugin.Settings;
             GetComponent<Dev.DevTools>().OnSceneLoaded(scene);
+            if (scene.name == "MainMenu") StartCoroutine(Net.DevNet.OnMainMenu());
 
             // A map: anything but the menu and the victory screen (SceneMotor's scene names).
             if (scene.name != "MainMenu" && scene.name != "VictoryScene" && !string.IsNullOrEmpty(scene.name))
@@ -110,6 +113,7 @@ namespace Straft4Dead
 
             if (!cfg.LogDiagnostics.Value)
                 return;
+            Net.NetDiag.Log("scene " + scene.name);
 
             // Spawn roots are tagged "Spawnpoints" (1v1) and "Spawnpoints4Player" (2v2/FFA); see PlayerManager.PopulateSpawnPoints.
             int spawns1 = CountSpawns("Spawnpoints");

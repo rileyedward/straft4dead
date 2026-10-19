@@ -17,7 +17,8 @@ namespace Straft4Dead.Zombies
         internal static bool InLobby => InstanceFinder.IsClient;
 
         internal static bool IsAlive(PlayerHealth p) =>
-            p != null && p.isActiveAndEnabled && !p.sync___get_value_isKilled() && p.sync___get_value_health() > 0f &&
+            // Not isActiveAndEnabled: PlayerSetup disables remote players' PlayerHealth component on each machine.
+            p != null && p.gameObject.activeInHierarchy && !p.sync___get_value_isKilled() && p.sync___get_value_health() > 0f &&
             !(p.GetComponent<Survivors.SurvivorHealth>()?.Incapacitated ?? false);
 
         /// <summary>Server-side damage through the game's own RemoveHealth logic (syncs health, plays hit feedback).

@@ -28,6 +28,8 @@ namespace Straft4Dead.Patches
                     return; // already dead (e.g. a write during the game's own death handling)
                 s.BeginIncap();
             }
+            else
+                s.IncapDamage(GameAccess.ToL4D2(__instance.sync___get_value_health() - __0)); // hit while down
             __0 = Sliver;
         }
     }

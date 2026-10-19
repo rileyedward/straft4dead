@@ -22,10 +22,23 @@ namespace Straft4Dead.Survivors
         private HumanPose _pose;
         private GameObject _body;
         private readonly List<SkinnedMeshRenderer> _aboubi = new List<SkinnedMeshRenderer>();
+        private MeshRenderer[] _cosmetics = new MeshRenderer[0]; // STRAFTAT hats/glasses on Aboubi's bones: they'd float off the survivor
+        private float _nextCosmeticScan;
         private Renderer[] _ours = new Renderer[0];
         private Transform _srcHips, _dstHips;
         private bool _ragdoll;
         private string _survivor;
+        private PlayerHealth _player;
+
+        /// <summary>Whose body this is: the player above it, or for a death ragdoll the player nearest to where it fell.
+        /// Each player shows as their own survivor (their pick reaches everyone through NetSync).</summary>
+        private string Desired()
+        {
+            if (_player == null)
+                _player = GetComponentInParent<PlayerHealth>() ??
+                          FindObjectsOfType<PlayerHealth>().OrderBy(p => (p.transform.position - transform.position).sqrMagnitude).FirstOrDefault();
+            return Net.NetSync.SurvivorFor(_player);
+        }
 
         internal GameObject Body => _body;
 
@@ -36,7 +49,7 @@ namespace Straft4Dead.Survivors
             if (SurvivorAssets.Instance == null || !SurvivorAssets.Instance.Loaded)
                 return;
             foreach (var b in Object.FindObjectsOfType<SurvivorBody>())
-                if (!Plugin.Settings.SurvivorBodies.Value || !Plugin.Settings.Enabled.Value || b._survivor != Plugin.Settings.SurvivorName.Value)
+                if (!Plugin.Settings.SurvivorBodies.Value || !Plugin.Settings.Enabled.Value || (b._survivor != null && b._survivor != b.Desired()))
                     Destroy(b);
             if (!Plugin.Settings.SurvivorBodies.Value || !Plugin.Settings.Enabled.Value)
                 return;
@@ -49,7 +62,7 @@ namespace Straft4Dead.Survivors
         private void Start()
         {
             _src = GetComponent<Animator>();
-            _survivor = Plugin.Settings.SurvivorName.Value;
+            _survivor = Desired();
             var prefab = SurvivorAssets.Instance.Prefab(_survivor, "Body");
             if (prefab == null) { enabled = false; return; }
 
@@ -69,13 +82,15 @@ namespace Straft4Dead.Survivors
             _dstHips = _body.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "ValveBiped.Bip01_Pelvis");
             _srcPose = new HumanPoseHandler(_src.avatar, _src.transform);
             _dstPose = new HumanPoseHandler(dst.avatar, _body.transform);
-            Plugin.Logger.LogInfo($"[survivors] {Plugin.Settings.SurvivorName.Value} body on {transform.root.name}/{name} (layer {layer}, {_aboubi.Count} Aboubi parts hidden)");
+            Plugin.Logger.LogInfo($"[survivors] {_survivor} body on {transform.root.name}/{name} (layer {layer}, {_aboubi.Count} Aboubi parts hidden)");
         }
 
         private void LateUpdate()
         {
             if (_body == null) return;
             foreach (var r in _aboubi) if (r != null) r.forceRenderingOff = !ShowOriginal;
+            if (Time.time >= _nextCosmeticScan) { _nextCosmeticScan = Time.time + 1f; _cosmetics = GetComponentsInChildren<MeshRenderer>(true); }
+            foreach (var r in _cosmetics) if (r != null) r.forceRenderingOff = !ShowOriginal;
 
             _body.transform.SetPositionAndRotation(transform.position, transform.rotation);
             _srcPose.GetHumanPose(ref _pose);
@@ -99,6 +114,7 @@ namespace Straft4Dead.Survivors
         private void OnDestroy()
         {
             foreach (var r in _aboubi) if (r != null) r.forceRenderingOff = false;
+            foreach (var r in _cosmetics) if (r != null) r.forceRenderingOff = false;
             _srcPose?.Dispose();
             _dstPose?.Dispose();
             if (_body != null) Destroy(_body);

@@ -19,12 +19,23 @@ namespace Straft4Dead.Survivors
         internal PlayerHealth Player { get; private set; }
         internal float Permanent { get; private set; }
         internal float Temporary { get; private set; }
-        internal float Max => 100f * Plugin.Settings.PlayerHealthMultiplier.Value;
+        internal float Max => _mirror ? _mirrorMax : 100f * Plugin.Settings.PlayerHealthMultiplier.Value;
         internal int Medkits { get; private set; }
         internal int Pills { get; private set; }
         internal bool Incapacitated { get; private set; }
-        internal float IncapProgress => Incapacitated ? Mathf.Clamp01((Time.time - _incapStart) / Plugin.Settings.IncapSeconds.Value) : 0f;
-        internal float HealProgress => _healStart < 0f ? 0f : Mathf.Clamp01((Time.time - _healStart) / Plugin.Settings.MedkitSeconds.Value);
+        /// <summary>0 → 1 as the incapped survivor bleeds out (their incap health drains, damage speeds it up).</summary>
+        internal float IncapProgress => _mirror ? _mirrorIncap : Incapacitated ? 1f - Mathf.Clamp01(_incapHp / IncapHealth) : 0f;
+        internal float HealProgress => _mirror ? _mirrorHeal : _healStart < 0f ? 0f : Mathf.Clamp01((Time.time - _healStart) / Plugin.Settings.MedkitSeconds.Value);
+        /// <summary>A teammate holding the revive key on us (2v2), 0 → 1.</summary>
+        internal float ReviveProgress { get; set; }
+        /// <summary>Client copy of the host's numbers for our own survivor (Phase 8): the HUD reads this.</summary>
+        internal bool IsMirror => _mirror;
+
+        private const float IncapHealth = 300f; // L4D2's incap health pool
+        private bool _mirror;
+        private float _mirrorMax = 100f, _mirrorIncap, _mirrorHeal;
+        private float _incapHp, _incapDrain;
+        private bool _healSent;
 
         /// <summary>Set while we write health ourselves, so HealthPatches doesn't treat it as damage or incap.</summary>
         internal static bool Writing;
@@ -70,7 +81,10 @@ namespace Straft4Dead.Survivors
                 OnSpawn(gen);
             if (Incapacitated)
             {
-                if (Time.time - _incapStart >= Plugin.Settings.IncapSeconds.Value)
+                // Bleeding out; a teammate reviving us holds it (L4D2), Revives finishes the revive.
+                if (ReviveProgress <= 0f)
+                    _incapHp -= _incapDrain * Time.deltaTime;
+                if (_incapHp <= 0f)
                     FinishIncap();
                 return;
             }
@@ -136,6 +150,7 @@ namespace Straft4Dead.Survivors
 
         internal bool TakePills()
         {
+            if (Net.NetSync.IsRemoteClient) { Net.NetSync.SendUsePills(); return true; } // the host decides
             if (Incapacitated || Pills <= 0 || Permanent + Temporary >= Max - 0.5f)
                 return false;
             Pills--;
@@ -148,6 +163,11 @@ namespace Straft4Dead.Survivors
 
         internal void SetHealing(bool holding)
         {
+            if (Net.NetSync.IsRemoteClient)
+            {
+                if (holding != _healSent) { _healSent = holding; Net.NetSync.SendHeal(holding); }
+                return;
+            }
             if (!holding || Incapacitated || Medkits <= 0 || Permanent >= Max - 0.5f)
                 _healStart = -1f;
             else if (_healStart < 0f)
@@ -164,13 +184,47 @@ namespace Straft4Dead.Survivors
                 return;
             Incapacitated = true;
             _incapStart = Time.time;
+            // With a teammate alive to come and help (2v2) the incap lasts long enough to be revived; otherwise it's the
+            // short Phase 2 incap before the take ends.
+            float seconds = Revives.HasLivingTeammate(Player) ? Plugin.Settings.TeamIncapSeconds.Value : Plugin.Settings.IncapSeconds.Value;
+            _incapHp = IncapHealth;
+            _incapDrain = IncapHealth / Mathf.Max(0.5f, seconds);
+            ReviveProgress = 0f;
             _healStart = -1f;
             Permanent = 0f;
             Temporary = 0f;
             _lastGameHp = 0.01f;
             SurvivorVoice.Say(this, "incap", interrupt: true);
             Zombies.ZombieDirector.OnSurvivorIncap();
-            Plugin.Logger.LogInfo($"[health] {Player.transform.root.name} incapacitated for {Plugin.Settings.IncapSeconds.Value:F1} s");
+            Plugin.Logger.LogInfo($"[health] {Player.transform.root.name} incapacitated for {IncapHealth / _incapDrain:F1} s");
+        }
+
+        /// <summary>Host: damage taken while down eats the incap health (enemies and zombies can finish you).</summary>
+        internal void IncapDamage(float hp)
+        {
+            if (!Incapacitated) return;
+            _incapHp -= hp; // Update finishes them next frame (not from inside the health setter)
+        }
+
+        /// <summary>Host: a teammate got us up. L4D2 gives a revived survivor 30 temporary health.</summary>
+        internal void Revive()
+        {
+            if (!Incapacitated) return;
+            Incapacitated = false;
+            ReviveProgress = 0f;
+            Permanent = 1f;
+            Temporary = 29f;
+            Push();
+            SurvivorVoice.Say(this, "thanks", interrupt: true);
+            Plugin.Logger.LogInfo($"[health] {Player.transform.root.name} revived");
+        }
+
+        /// <summary>Client: the host's numbers for our own survivor.</summary>
+        internal void ApplyMirror(float perm, float temp, float max, int kits, int pills, bool incap, float incapProgress, float healProgress, float reviveProgress)
+        {
+            _mirror = true;
+            Permanent = perm; Temporary = temp; _mirrorMax = max; Medkits = kits; Pills = pills;
+            Incapacitated = incap; _mirrorIncap = incapProgress; _mirrorHeal = healProgress; ReviveProgress = reviveProgress;
         }
 
         private void FinishIncap()

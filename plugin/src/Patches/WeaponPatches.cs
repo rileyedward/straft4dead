@@ -22,8 +22,21 @@ namespace Straft4Dead.Patches
                 return true;
             bool head = __0.name == Zombie.HeadName;
             float units = __instance.damage * (head ? __instance.headMultiplier : 1f);
-            zombie.TakeDamage(GameAccess.ToL4D2(units) * Plugin.Settings.WeaponDamageToZombies.Value, __1, __3, head);
+            Hit(zombie, GameAccess.ToL4D2(units) * Plugin.Settings.WeaponDamageToZombies.Value, __1, __3, head);
             return false; // not a prop, pig or glass: skip the game's environment handling
+        }
+
+        /// <summary>Shots run on the shooter's own game only (Gun.ShootServer is local despite its name). The host applies
+        /// the damage; a client's hit on a puppet goes to the host (Phase 8).</summary>
+        private static void Hit(IInfected target, float hp, Vector3 point, Vector3 dir, bool head)
+        {
+            if (Net.NetSync.IsRemoteClient)
+            {
+                Net.NetSync.SendHit(target, hp, point, dir, head);
+                return;
+            }
+            if (target.TakeDamage(hp, point, dir, head))
+                Survivors.SurvivorVoice.KillBy(Survivors.SurvivorHealth.Local?.Player);
         }
 
         /// <summary>Melee weapons look for players only; add a short sweep in front of the camera for zombies.</summary>
@@ -42,7 +55,7 @@ namespace Straft4Dead.Patches
                     continue;
                 bool head = h.collider.name == Zombie.HeadName;
                 float units = __instance.damage * (head ? __instance.headMultiplier : 1f);
-                z.TakeDamage(GameAccess.ToL4D2(units) * Plugin.Settings.WeaponDamageToZombies.Value, h.point, cam.transform.forward, head);
+                Hit(z, GameAccess.ToL4D2(units) * Plugin.Settings.WeaponDamageToZombies.Value, h.point, cam.transform.forward, head);
                 break;
             }
         }

@@ -108,6 +108,12 @@ namespace Straft4Dead.Zombies
             Kills = 0;
             _music = gameObject.AddComponent<DirectorMusic>();
             yield return new WaitForSeconds(1.5f); // let the map and its moving parts settle
+            if (Net.NetSync.IsRemoteClient)
+            {
+                // Someone else hosts: their director runs the infected and we show puppets (Phase 8). No navmesh needed.
+                Plugin.Logger.LogInfo("[director] client of another host: puppets only");
+                yield break;
+            }
             float t0 = Time.realtimeSinceStartup;
             int tris = NavMeshBaker.Bake(gameObject.scene);
             BakeMs = (Time.realtimeSinceStartup - t0) * 1000f;
@@ -204,7 +210,7 @@ namespace Straft4Dead.Zombies
 
         private void Enter(Phase next)
         {
-            if (State == Phase.Horde) _music.EndHorde();
+            if (State == Phase.Horde) { _music.EndHorde(); Net.NetSync.Music(false); }
             Plugin.Logger.LogInfo($"[director] {State} -> {next} (stress {Stress:F2}, alive {Zombie.Alive}, kills {Kills})");
             State = next;
             _phaseStart = Time.time;
@@ -230,6 +236,8 @@ namespace Straft4Dead.Zombies
 
         private void ScheduleHorde(float seconds) => _hordeAt = Time.time + seconds;
 
+        internal DirectorMusic Music => _music;
+
         private void ClearInfected()
         {
             foreach (var z in FindObjectsOfType<Zombie>()) Destroy(z.gameObject);
@@ -237,6 +245,8 @@ namespace Straft4Dead.Zombies
             foreach (var r in FindObjectsOfType<TankRock>()) Destroy(r.gameObject);
             _hordeLeft = 0;
             _music.EndHorde();
+            Net.NetSync.Clear();
+            Net.NetSync.Music(false);
         }
 
         /// <summary>Phase 6: one Tank some takes, a Witch sitting somewhere some takes, Boomers now and then.</summary>
@@ -251,7 +261,7 @@ namespace Straft4Dead.Zombies
                 _tankAt = -1f;
                 Tank.Create(tp);
                 Stress = Mathf.Max(Stress, 0.5f);
-                Survivors.SurvivorVoice.Say(me, "warn_tank", interrupt: true);
+                Survivors.SurvivorVoice.SayEveryone("warn_tank", interrupt: true);
             }
             if (_witchAt > 0f && Time.time >= _witchAt && TryFindSpawnPoint(at, 18f, Plugin.Settings.SpawnMaxDistance.Value, out var wp))
             {
@@ -264,7 +274,7 @@ namespace Straft4Dead.Zombies
                 if (!FindObjectsOfType<Boomer>().Any(b => !b.IsDead) && TryFindSpawnPoint(at, Plugin.Settings.SpawnMinDistance.Value, Plugin.Settings.SpawnMaxDistance.Value, out var bp))
                 {
                     Boomer.Create(bp);
-                    Survivors.SurvivorVoice.Say(me, "warn_boomer", chance: 0.5f);
+                    Survivors.SurvivorVoice.SayEveryone("warn_boomer", chance: 0.5f);
                 }
             }
         }
@@ -276,7 +286,7 @@ namespace Straft4Dead.Zombies
             if (State == Phase.Horde || !TryFindSpawnPoint(victim, Plugin.Settings.SpawnMinDistance.Value, Plugin.Settings.SpawnMaxDistance.Value, out _hordeOrigin)) return;
             _hordeLeft = Scaled(Plugin.Settings.HordeSize.Value);
             Enter(Phase.Horde);
-            if (Plugin.Settings.HordeMusic.Value) _music.StartHorde();
+            if (Plugin.Settings.HordeMusic.Value) { _music.StartHorde(); Net.NetSync.Music(true); }
             Plugin.Logger.LogInfo($"[director] bile horde of {_hordeLeft} from {_hordeOrigin}");
         }
 
@@ -294,8 +304,8 @@ namespace Straft4Dead.Zombies
             _hordeLeft = Scaled(Plugin.Settings.HordeSize.Value);
             _openingPending = false;
             Enter(Phase.Horde);
-            if (Plugin.Settings.HordeMusic.Value) _music.StartHorde();
-            Survivors.SurvivorVoice.Say(Survivors.SurvivorHealth.Local, "incoming", interrupt: true);
+            if (Plugin.Settings.HordeMusic.Value) { _music.StartHorde(); Net.NetSync.Music(true); }
+            Survivors.SurvivorVoice.SayEveryone("incoming", interrupt: true);
             // Wanderers hear it too.
             foreach (var z in FindObjectsOfType<Zombie>()) z.Alert(spread: false);
             Plugin.Logger.LogInfo($"[director] horde of {_hordeLeft} from {_hordeOrigin} ({Vector3.Distance(_hordeOrigin, anchor.transform.position):F0} m out)");
