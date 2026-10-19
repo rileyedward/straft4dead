@@ -13,6 +13,9 @@
   `build_infected/survivors/specials.py` run side by side (up to 4; a model and its animation set, which share a
   folder, in separate rounds). Before Unity, the build went from ~5.5 min to ~2 min on this PC; the exported FBX
   and textures match the old build's.
+- Fresh-PC fix: Crowbar crashes on startup (SetUpGamesUserControl index out of range) when its settings file lacks its
+  own defaults, which is what the setup used to create on a PC that never ran Crowbar. The setup now opens and closes
+  Crowbar once to let it write them, then sets the output folder. Found in Riley's fresh-install test.
 
 ## 2026-10-19 — Phase 7 launcher
 

@@ -37,9 +37,18 @@ New-Item -ItemType Directory -Force $Work, $bundles, "$Work\crowbar" | Out-Null
 function Set-CrowbarOutput($out) {
     $dir = Join-Path $env:APPDATA "ZeqMacaw\Crowbar 0.74"
     $file = Join-Path $dir "Crowbar Settings.xml"
-    New-Item -ItemType Directory -Force $dir | Out-Null
-    if (Test-Path $file) { [xml]$xml = Get-Content $file -Raw }
-    else { [xml]$xml = '<?xml version="1.0" encoding="utf-8"?><AppSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"></AppSettings>' }
+    # Crowbar crashes on a settings file without its own defaults (the game list), so on a PC that has never run it,
+    # open and close it once to let it write them.
+    if (-not (Test-Path $file) -or -not (Select-String $file -Pattern "<GameSetups>" -Quiet)) {
+        if (Test-Path $file) { Remove-Item $file }
+        $p = Start-Process $Crowbar -PassThru
+        for ($i = 0; $i -lt 120 -and $p.MainWindowHandle -eq 0; $i++) { Start-Sleep -Milliseconds 250; $p.Refresh() }
+        Start-Sleep -Seconds 1
+        $p.CloseMainWindow() | Out-Null
+        if (-not $p.WaitForExit(10000)) { Stop-Process $p -ErrorAction SilentlyContinue }
+        if (-not (Test-Path $file)) { throw "Crowbar didn't write its settings file ($file)." }
+    }
+    [xml]$xml = Get-Content $file -Raw
     $values = [ordered]@{
         DecompileOutputFolderOption = "WorkFolder"; DecompileOutputFullPath = $out; DecompileQcFileIsChecked = "true"
         OptionsAutoOpenMdlFileIsChecked = "true"; OptionsAutoOpenMdlFileForDecompileIsChecked = "true"; OptionsAutoOpenMdlFileOption = "Decompile"

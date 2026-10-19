@@ -35,6 +35,7 @@ $byName = New-Object System.Windows.Automation.PropertyCondition([System.Windows
 $button = $null
 while (-not $button -and $clock.Elapsed.TotalSeconds -lt 60) {
     Start-Sleep -Milliseconds 250
+    if ($p.HasExited) { Write-Error "Crowbar closed by itself (see %APPDATA%\ZeqMacaw\Crowbar 0.74\unhandled_exception_error.txt)"; exit 1 }
     $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $byPid)
     if (-not $win) { continue }
     foreach ($b in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $byName)) {
