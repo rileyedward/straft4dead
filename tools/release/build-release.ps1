@@ -3,7 +3,8 @@
 #
 #   powershell -ExecutionPolicy Bypass -File tools\release\build-release.ps1 [-Downloads]
 #
-# Writes dist\Straft4Dead-<version>.zip and its .sha256 (to your Downloads folder too with -Downloads).
+# Writes dist\Straft4Dead-<version>.zip and its .sha256, plus dist\Straft4Dead-Launcher.exe and its .sha256
+# (all four copied to your Downloads folder too with -Downloads).
 param([switch] $Downloads)
 $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path "$PSScriptRoot\..\..").Path
@@ -35,5 +36,11 @@ Compress-Archive -Path "$stage\*" -DestinationPath $zip
 $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 Set-Content "$zip.sha256" "$hash  Straft4Dead-$version.zip" -NoNewline
 Remove-Item -Recurse -Force $stage
-if ($Downloads) { Copy-Item $zip, "$zip.sha256" (Join-Path $env:USERPROFILE "Downloads") }
+dotnet build "$repo\launcher" -c Release
+if ($LASTEXITCODE -ne 0) { throw "launcher build failed" }
+$exe = "$repo\dist\Straft4Dead-Launcher.exe"
+Copy-Item "$repo\launcher\bin\Release\net48\Straft4Dead-Launcher.exe" $exe -Force
+$exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+Set-Content "$exe.sha256" "$exeHash  Straft4Dead-Launcher.exe" -NoNewline
+if ($Downloads) { Copy-Item $zip, "$zip.sha256", $exe, "$exe.sha256" (Join-Path $env:USERPROFILE "Downloads") }
 Write-Host "Built $zip ($hash)"

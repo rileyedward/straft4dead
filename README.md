@@ -23,54 +23,71 @@ Straft 4 Dead is not produced, approved or endorsed by Valve or Lemaitre Bros. I
 - **L4D2 Health and HUD**: Permanent and temporary health, pain pills, medkits and incaps on the L4D2 survivor HUD. Most guns one-shot a common.
 - **Multiplayer**: Private lobbies with friends. The host runs the infected and everyone sees the same zombies, and in 2v2 you can revive a downed teammate.
 - **Host Settings Panel**: Press `F9` for the mode switch, your survivor and every zombie setting, applied live.
+- **One-Click Launcher**: Finds your games, installs BepInEx and the mod, downloads the asset tools, builds the L4D2 assets from your own install and starts the game.
 
 ## Getting Started
 
 ### Prerequisites
 
-Ensure you have the following installed on your system. You can verify each one with the provided commands in a terminal.
+1. **STRAFTAT** on Steam (Windows).
 
-1. **STRAFTAT** on Steam (Windows), with [BepInEx 5](https://github.com/BepInEx/BepInEx/releases) (x64, 5.4.23 or newer) extracted into the game folder and the game started once.
+2. **Left 4 Dead 2** on Steam. The mod builds its zombies, survivors, sounds and HUD from your own copy, so everyone who plays needs one.
 
-2. **Left 4 Dead 2** on Steam. The mod builds its models, animations, sounds and HUD art from your copy.
-
-3. **Python** (3.10+) runs the asset pipeline. Check it by running:
-
-    ```bash
-    python --version
-    ```
-
-4. **Blender** (5.2 is what the mod is built with) with the [SourceIO](https://github.com/REDxEYE/SourceIO) add-on enabled converts L4D2 models and textures.
-
-5. **Crowbar** (0.74) decompiles L4D2's animation sets. Open it once and set the Decompile output folder to `<asset folder>\crowbar`.
-
-6. **Unity 2021.3.45f2** (a free Personal licence through Unity Hub) packs the converted assets into bundles the game can load.
+3. **A free Unity account.** Unity packs the L4D2 models into files the game can load. The launcher walks you through installing it; you sign in once.
 
 ### Installation
 
-1. Download `Straft4Dead-<version>.zip` from the [Releases](../../releases) page and extract it anywhere, for example `Documents\Straft4Dead`.
+**With the launcher (easiest):**
 
-2. Copy its `BepInEx\plugins\Straft4Dead` folder into `<STRAFTAT>\BepInEx\plugins\`.
+1. Download [`Straft4Dead-Launcher.exe`](https://github.com/rileyedward/straft4dead/releases/latest/download/Straft4Dead-Launcher.exe) from the [Releases](../../releases) page and run it. Windows may warn that it's from an unknown publisher, because the exe isn't signed: choose More info, then Run anyway.
 
-3. Close STRAFTAT, then build the L4D2 assets from your own install. Pick any folder for them, and fix the paths to match your PC:
+2. Press **Set up**. The launcher finds STRAFTAT and Left 4 Dead 2 through Steam, then:
+    - installs [BepInEx](https://github.com/BepInEx/BepInEx) and the latest Straft 4 Dead from GitHub,
+    - downloads portable [Python](https://www.python.org), [Blender](https://www.blender.org) with the [SourceIO](https://github.com/REDxEYE/SourceIO) add-on, and [Crowbar](https://github.com/ZeqMacaw/Crowbar) (about 450 MB, checked against pinned checksums; nothing is installed system-wide).
+
+3. **Unity, once:** the launcher shows three buttons. **Get Unity Hub** runs Unity's installer; sign in to Unity Hub with a free account (it activates a free Personal licence). **Install Unity 2021.3.45f2** asks the Hub to install the exact version. When it's done, press **Check again**.
+
+4. The launcher builds the L4D2 assets from your install, with a progress bar. The first build takes a while because Unity imports everything once.
+
+5. Press **Play**. STRAFTAT starts with Straft 4 Dead; from then on, open the launcher and press **Play** whenever you want to play.
+
+The launcher keeps everything in `%APPDATA%\Straft4Dead` (BepInEx, the mod, the tools and your built assets), so STRAFTAT started from Steam stays vanilla. **Update** appears when there's a newer release on GitHub, **Rebuild assets** builds them again, and **Uninstall** removes it all (it asks whether to keep your settings, assets and tools). See [docs/launcher.md](docs/launcher.md) for how it works.
+
+**Manually:**
+
+1. Install [BepInEx 5](https://github.com/BepInEx/BepInEx/releases) (x64, 5.4.23) into the STRAFTAT folder and start the game once.
+2. Download `Straft4Dead-<version>.zip` from the [Releases](../../releases) page, extract it, and copy its `BepInEx\plugins\Straft4Dead` folder into `<STRAFTAT>\BepInEx\plugins\`.
+3. Install Python (3.10+), Blender (5.2) with SourceIO, Crowbar (0.74) and Unity 2021.3.45f2, then close STRAFTAT and build the assets:
 
     ```bash
     powershell -ExecutionPolicy Bypass -File tools\setup\setup.ps1 ^
         -L4D2 "C:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2" ^
         -Straftat "C:\Program Files (x86)\Steam\steamapps\common\STRAFTAT" ^
         -Work "%USERPROFILE%\Straft4DeadAssets" ^
-        -Blender "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" ^
+        -Blender "C:\Tools\blender-5.2.2-windows-x64\blender.exe" ^
         -Crowbar "C:\Tools\Crowbar\Crowbar.exe" ^
         -Unity "C:\Program Files\Unity\Hub\Editor\2021.3.45f2\Editor\Unity.exe"
     ```
 
-    This takes a while the first time. Steps that are already done are skipped on the next run (`-Force` redoes everything), and at the end it points the mod's config at the new assets.
+    Steps that are already done are skipped on the next run (`-Force` redoes everything), and at the end it points the mod's config at the new assets.
 
-4. Start STRAFTAT. If the main menu says the L4D2 assets aren't set up, check the setup script's output.
+To play plain STRAFTAT again, start it from Steam (launcher install), switch the mode off in the `F9` panel, or delete the `Straft4Dead` plugin folder (manual install).
 
-To play plain STRAFTAT again, switch the mode off in the `F9` panel, or delete the `Straft4Dead` plugin folder.
+### Playing with Friends
 
-Straft 4 Dead marks itself as not vanilla-compatible, so STRAFTAT puts you in a separate matchmaking pool and you never meet unmodded players. Play it in single player or in private lobbies with friends who have the mod and the same version.
+There's no server to run: the host's game runs the infected and STRAFTAT's own Steam lobbies connect everyone.
+
+1. **Everyone sets up once.** Each friend needs STRAFTAT and Left 4 Dead 2 on Steam, then follows [Installation](#installation) with the launcher. Everyone needs the same Straft 4 Dead version; the launcher shows **Update** when a newer one is out.
+
+2. **Everyone starts the game from the launcher** with **Play**, before joining. A Steam invite accepted while STRAFTAT is closed starts plain STRAFTAT, which can't join a modded lobby.
+
+3. **The host makes a lobby** from STRAFTAT's main menu, sets it to friends-only or private (not public), and invites friends with the lobby's invite button or through the Steam overlay (`Shift+Tab`, right-click a friend, Invite to Game).
+
+4. **Friends accept the invite** in Steam and land in the host's lobby. Join while the host is still in the lobby: STRAFTAT locks the lobby once a match starts unless the host allows mid-match joining.
+
+5. **The host picks the rules.** The host's `F9` zombie settings apply to everyone; each player picks their own survivor in their own `F9` panel. In 2v2, hold `E` over a downed teammate to revive them.
+
+Straft 4 Dead marks itself as not vanilla-compatible, so STRAFTAT puts modded players in a separate matchmaking pool and you never meet unmodded players. It's meant for single player and private lobbies with friends.
 
 ### Controls
 
@@ -149,13 +166,14 @@ The rest of the file holds zombie speed, damage and reach, the bundle and textur
 | `plugin/src/Net/` | Multiplayer: the host → client sync, and the dev LAN mode for two copies on one PC |
 | `plugin/src/Patches/` | Harmony patches on STRAFTAT's weapons and health |
 | `plugin/src/Dev/` | Automated in-game tests and screenshots |
-| `tools/setup/` | The one-command asset setup |
+| `launcher/` | The Windows launcher (`Straft4Dead-Launcher.exe`): finds the games, installs BepInEx and the mod into its own profile, downloads the asset tools, runs the asset build and plays, updates and uninstalls. Standalone; doesn't reference the plugin |
+| `tools/setup/` | The one-command asset setup the launcher runs |
 | `tools/pipeline/` | The asset pipeline: VPK reader, Blender export, texture conversion, and the build scripts for commons, survivors, specials and the HUD |
 | `unity/S4DBundles/` | Unity project that packs the converted assets into bundles (editor scripts and the infected shader) |
 | `tools/dev/` | Config helper, second-copy builder and the two-copy LAN test |
 | `tools/rea/`, `tools/unity/` | Helpers for mapping STRAFTAT's internals and assets |
 | `tools/release/` | The release build script |
-| `docs/` | [Roadmap](docs/roadmap.md), [systems map](docs/systems-map.md) (STRAFTAT internals with evidence), [asset pipeline](docs/asset-pipeline.md) and the [devlog](docs/devlog.md) |
+| `docs/` | [Roadmap](docs/roadmap.md), [systems map](docs/systems-map.md) (STRAFTAT internals with evidence), [asset pipeline](docs/asset-pipeline.md), [the launcher](docs/launcher.md) and the [devlog](docs/devlog.md) |
 
 ## How It Works
 
@@ -175,7 +193,7 @@ Releases are built locally, because the plugin compiles against STRAFTAT's assem
 powershell -ExecutionPolicy Bypass -File tools\release\build-release.ps1 -Downloads
 ```
 
-This builds the plugin and writes `dist\Straft4Dead-<version>.zip` (the plugin, the setup script, the asset pipeline and the bundle-builder project) and its `.sha256` file, and copies both to your Downloads folder with `-Downloads`.
+This builds the plugin and the launcher and writes `dist\Straft4Dead-<version>.zip` (the plugin, the setup script, the asset pipeline and the bundle-builder project) and `dist\Straft4Dead-Launcher.exe`, each with a `.sha256` file, and copies all four to your Downloads folder with `-Downloads`. Attach them to a GitHub release tagged `v<version>`; the launcher installs the newest release.
 
 ## Testing
 
@@ -205,6 +223,6 @@ Straft 4 Dead is released under the [MIT License](LICENSE).
 
 Straft 4 Dead contains no Left 4 Dead 2 or STRAFTAT code or assets. Models, animations, sounds and HUD art are converted at setup from the player's own Left 4 Dead 2 install and loaded at runtime; they are never committed or redistributed. STRAFTAT's internals in [docs/systems-map.md](docs/systems-map.md) were mapped from assembly metadata and reading the game's code locally; no decompiled code is included.
 
-Built with [BepInEx](https://github.com/BepInEx/BepInEx) (LGPL-2.1) and [Harmony](https://github.com/pardeike/Harmony) (MIT), which are installed separately and not included in the release. The asset setup uses [SourceIO](https://github.com/REDxEYE/SourceIO), [Crowbar](https://steamcommunity.com/groups/CrowbarTool) and Unity, which are installed separately.
+Built with [BepInEx](https://github.com/BepInEx/BepInEx) (LGPL-2.1) and [Harmony](https://github.com/pardeike/Harmony) (MIT), which are installed separately and not included in the release. The asset setup uses [Python](https://www.python.org) (PSF), [Blender](https://www.blender.org) (GPL), [SourceIO](https://github.com/REDxEYE/SourceIO) (MIT), [Crowbar](https://github.com/ZeqMacaw/Crowbar) and Unity; the launcher downloads the first four from their official sources at pinned versions, and Unity is installed through Unity Hub under Unity's own terms.
 
 Left 4 Dead 2 is a trademark of Valve Corporation. STRAFTAT is developed by Lemaitre Bros.

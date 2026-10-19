@@ -1,5 +1,18 @@
 # Devlog
 
+## 2026-10-19 — Phase 7 launcher
+
+**Changed**
+- `launcher/`: `Straft4Dead-Launcher.exe` (.NET Framework 4.8 WinForms, modelled on ValRally's launcher). Finds Steam,
+  STRAFTAT and L4D2; installs BepInEx 5.4.23.5 and the newest GitHub release into `%APPDATA%\Straft4Dead\profile`;
+  downloads portable Python, Blender 5.2.2 + SourceIO 5.5.4 and Crowbar 0.74 (pinned URLs and SHA-256, mirrors for
+  Blender); guides the one Unity step it can't script (Unity Hub install, sign-in, `unityhub://` deep link for
+  2021.3.45f2); runs `setup.ps1` with a progress bar; Play launches through Steam with doorstop arguments so a plain
+  Steam start stays vanilla. Update, Rebuild assets and Uninstall; every step also runs from the command line.
+- `setup.ps1` takes the portable Python and sets Crowbar's output folder itself; `set_cfg.py` creates the config if
+  it's missing. The release script also builds the launcher and ships it with its `.sha256`.
+- README: launcher install, the Unity sign-in, a Playing with Friends walkthrough; `docs/launcher.md`.
+
 ## 2026-10-19 — Phase 8 (Multiplayer) and Phase 9 (README)
 
 **Changed**

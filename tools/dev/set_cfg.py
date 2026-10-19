@@ -1,11 +1,12 @@
-"""Set keys in a BepInEx .cfg file in place (adds the section/key if missing).
+"""Set keys in a BepInEx .cfg file in place (adds the file, section or key if missing).
 
 usage: python -I set_cfg.py <file.cfg> Section.Key=value [Section.Key=value ...]
 """
-import re, sys
+import os, re, sys
 
 path = sys.argv[1]
-text = open(path, encoding="utf-8-sig").read()
+text = open(path, encoding="utf-8-sig").read() if os.path.exists(path) else ""
+if os.path.dirname(path): os.makedirs(os.path.dirname(path), exist_ok=True)
 for arg in sys.argv[2:]:
     left, value = arg.split("=", 1)
     section, key = left.split(".", 1)

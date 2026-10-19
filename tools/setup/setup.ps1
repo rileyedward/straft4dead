@@ -10,8 +10,9 @@
 #
 # Needs: Python 3, Blender (with the SourceIO add-on), Crowbar 0.74, Unity 2021.3 (a free Personal licence), and
 # BepInEx 5 + the Straft 4 Dead plugin already in STRAFTAT. Close STRAFTAT first (it locks the bundles).
-# Crowbar has no command line: set its Decompile output folder (Crowbar Settings.xml, DecompileOutputFullPath) to
-# <Work>\crowbar once before the first run.
+# Crowbar has no command line: this script points its Decompile output folder (%APPDATA%\ZeqMacaw\Crowbar 0.74\
+# Crowbar Settings.xml) at <Work>\crowbar before decompiling. The launcher runs this script for players; -Config
+# says which BepInEx config to write (default: the one in the STRAFTAT folder).
 # Steps already done are skipped; pass -Force to redo everything.
 param(
     [Parameter(Mandatory)] [string] $L4D2,
@@ -21,6 +22,7 @@ param(
     [Parameter(Mandatory)] [string] $Crowbar,
     [Parameter(Mandatory)] [string] $Unity,
     [string] $Python = "python",
+    [string] $Config,
     [switch] $Force
 )
 $ErrorActionPreference = "Stop"
@@ -30,6 +32,26 @@ $game = "$L4D2\left4dead2"
 $bundles = "$Work\bundles"
 New-Item -ItemType Directory -Force $Work, $bundles, "$Work\crowbar" | Out-Null
 
+# Crowbar reads its options from its settings file: decompile into <Work>\crowbar and open MDLs given on the command
+# line in the Decompile tab (crowbar_decompile.ps1 then presses the button).
+function Set-CrowbarOutput($out) {
+    $dir = Join-Path $env:APPDATA "ZeqMacaw\Crowbar 0.74"
+    $file = Join-Path $dir "Crowbar Settings.xml"
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    if (Test-Path $file) { [xml]$xml = Get-Content $file -Raw }
+    else { [xml]$xml = '<?xml version="1.0" encoding="utf-8"?><AppSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"></AppSettings>' }
+    $values = [ordered]@{
+        DecompileOutputFolderOption = "WorkFolder"; DecompileOutputFullPath = $out; DecompileQcFileIsChecked = "true"
+        OptionsAutoOpenMdlFileIsChecked = "true"; OptionsAutoOpenMdlFileForDecompileIsChecked = "true"; OptionsAutoOpenMdlFileOption = "Decompile"
+    }
+    foreach ($k in $values.Keys) {
+        $node = $xml.AppSettings.SelectSingleNode($k)
+        if (-not $node) { $node = $xml.CreateElement($k); $xml.AppSettings.AppendChild($node) | Out-Null }
+        $node.InnerText = $values[$k]
+    }
+    $xml.Save($file)
+}
+
 function Step($name, [scriptblock] $done, [scriptblock] $run) {
     if (-not $Force -and (& $done)) { Write-Host "[skip] $name"; return }
     Write-Host "[....] $name"
@@ -38,12 +60,13 @@ function Step($name, [scriptblock] $done, [scriptblock] $run) {
     Write-Host "[ ok ] $name"
 }
 
-foreach ($check in @($game, $Blender, $Crowbar, $Unity, "$Straftat\BepInEx")) {
+foreach ($check in @($game, $Blender, $Crowbar, $Unity, $Straftat)) {
     if (-not (Test-Path $check)) { throw "Not found: $check" }
 }
 if (Get-Process STRAFTAT -ErrorAction SilentlyContinue) { throw "Close STRAFTAT first." }
 
 # 1. Animation sets need Crowbar (SourceIO's own L4D2 animation import is broken).
+Set-CrowbarOutput "$Work\crowbar"
 foreach ($anim in "anim_common", "anim_hulk", "anim_boomer", "anim_witch") {
     Step "decompile $anim" { Test-Path "$Work\crowbar\${anim}_anims\*.smd" } {
         & $Python -I "$pipe\vpk.py" extract "$game\pak01_dir.vpk" "$Work\extracted\l4d2" "models/infected/$anim."
@@ -67,7 +90,7 @@ foreach ($b in @(@("S4DInfectedBuilder", "s4d_infected"), @("S4DSurvivorBuilder"
 }
 
 # 4. Point the mod at everything.
-$cfg = "$Straftat\BepInEx\config\dev.riley.straft4dead.cfg"
+$cfg = if ($Config) { $Config } else { "$Straftat\BepInEx\config\dev.riley.straft4dead.cfg" }
 & $Python -I "$repo\tools\dev\set_cfg.py" $cfg `
     "Zombies.InfectedBundle=$bundles\s4d_infected" "Survivors.Bundle=$bundles\s4d_survivors" "Specials.Bundle=$bundles\s4d_specials" `
     "HUD.TextureDir=$Work\hud" "HUD.L4D2SoundDir=$game\sound"
