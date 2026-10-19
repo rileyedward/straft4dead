@@ -1,5 +1,25 @@
 # Devlog
 
+## 2026-10-19 — Phase 3 (Real common infected)
+
+**Changed**
+- Commons are real L4D2 infected now: six outfits (tshirt/cargos, polo/jeans, dress shirt/jeans, tank top/jeans; female tank top/jeans, t-shirt/skirt), each zombie with a random head and body variant and its own skin and clothing colours, animated with L4D2's idle, shamble, run, melee, shove and two death clips, and voiced with 254 L4D2 infected sounds (alert, rage, idle moans, claw hits, bullet impacts, deaths). Capsules stay as the fallback without the bundle.
+- Pipeline: `tools/pipeline/build_infected.py` → Unity `S4DInfectedBuilder.Build` → `s4d_infected` bundle, config `[Zombies] InfectedBundle`.
+- `S4D/Infected` shader rebuilds L4D2's Infected look: base texture alpha = grey detail, blue = skin mask, red/green = blood/grime; colours from `ci_gradient_palette` rows (skin ramp in rows 0–7, top/bottom clothing ramps in rows 8–15). Our reading of the textures, tuned by eye.
+
+**Verified in game (Arena_00, AutoTest)**
+- Close-up render of a female common running with correct skin, hair, shirt and blood; top-down shot of the horde on the player; weapon hit kills one and its death clip plays.
+
+**Broke / learned**
+- Humanoid retargeting placed commons tens of metres away and under the floor (clip root offsets from the Source rig). Commons use a Generic rig with a shared armature name and in-place root bakes instead; survivors (Phase 4) can still use Humanoid for STRAFTAT's animations.
+- L4D2 commons import with the pelvis at the origin; non-raw exports are now grounded at the feet.
+- Unity batch builds with `-nographics` produce custom shaders without GPU programs (magenta in game). Build bundles without it.
+- Several bodygroup meshes share one material; recreating the material asset per mesh orphaned the earlier references (magenta heads).
+
+**Next**
+- Phase 4: survivors (first-person arms, then bodies, then voice lines).
+
+
 ## 2026-10-19 — Phase 2 (L4D2 HUD and health, incap then take ends)
 
 **Changed**

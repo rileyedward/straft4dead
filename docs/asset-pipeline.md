@@ -99,3 +99,16 @@ Config `[Phase0] AssetProof = true` with `BundlePath` and `VoiceLine` set (it's 
 5. renders three frames from its own camera to `BepInEx\s4d_phase0*.png`.
 
 All five worked on 2026-10-18. Copies of the shots are in `straft4dead-research\phase0-shots\` (they show Valve assets, so they stay out of the repo).
+
+## Common infected set (Phase 3)
+
+```
+python -I tools\pipeline\build_infected.py "<L4D2>\left4dead2" <work dir> <blender.exe>
+Unity.exe -batchmode -quit -projectPath unity\S4DBundles -executeMethod S4DInfectedBuilder.Build -s4dSource <work>\fbx -s4dOut <bundles>
+```
+
+- Needs `anim_common` decompiled by Crowbar into `<work>\crowbar\anim_common_anims` first (`crowbar_decompile.ps1`).
+- Outfit FBX are exported `--raw` (Source armature space, not stood up) with the armature renamed `S4D_Armature`; the animation FBX is baked on the same armature with the root bone pinned horizontally. Unity imports both as **Generic** so the clips bind by bone path on every outfit.
+- Materials: one `S4D/Infected` material per base texture, palette assigned; rows are randomised per zombie at runtime through a MaterialPropertyBlock.
+- **Don't pass `-nographics`** to the bundle build: custom shaders then ship without compiled programs and render magenta.
+- Sounds aren't bundled: the plugin loads `<L4D2>\left4dead2\sound\npc\infected\…` at startup, skipping special variants (CEDA, mud men, clowns, riot, Jimmy Gibbs, fallen survivors).
