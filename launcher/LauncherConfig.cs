@@ -64,12 +64,20 @@ namespace Straft4Dead.Launcher
             "256feca8e274e5da655e2a284fabafd9f554365eb164862089dacd4e8276d282",
             "https://www.7-zip.org/a/7zr.exe");
 
-        // --- Unity: can't be automated past the download, it needs the player's own (free) sign-in ---
+        // --- Unity: the editor installs from Unity's own installer; only the free licence needs the player (Unity Hub) ---
 
         public const string UnityVersion = "2021.3.45f2";
         public const string UnityChangeset = "88f88f591b2e";
-        public static string UnityHubInstallLink => $"unityhub://{UnityVersion}/{UnityChangeset}";
-        public const string UnityHubSetupUrl = "https://public-cdn.cloud.unity3d.com/hub/prod/UnityHubSetup.exe";
+        /// <summary>Unity's official installer for exactly this version (about 3.2 GB), the same file Unity Hub fetches.</summary>
+        public static string UnityEditorSetupUrl =>
+            $"https://download.unity3d.com/download_unity/{UnityChangeset}/Windows64EditorInstaller/UnitySetup64-{UnityVersion}.exe";
+        /// <summary>Unity Hub's installer; Unity has moved it before, so the old name is the fallback.</summary>
+        public static readonly string[] UnityHubSetupUrls =
+        {
+            "https://public-cdn.cloud.unity3d.com/hub/prod/UnityHubSetup-x64.exe",
+            "https://public-cdn.cloud.unity3d.com/hub/prod/UnityHubSetup.exe",
+        };
+        public const string UnityDownloadPage = "https://unity.com/download";
     }
 
     /// <summary>

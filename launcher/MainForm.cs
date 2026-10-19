@@ -19,7 +19,12 @@ namespace Straft4Dead.Launcher
         private readonly Button updateButton = new Button { Text = "Update", Width = 90, Height = 42 };
         private readonly Button rebuildButton = new Button { Text = "Rebuild assets", Width = 110, Height = 42 };
         private readonly Button uninstallButton = new Button { Text = "Uninstall", Width = 90, Height = 42 };
-        private readonly GroupBox unityBox = new GroupBox { Text = "Unity needs you once", Width = 600, Height = 118, Visible = false };
+        private readonly GroupBox unityBox = new GroupBox { Text = "Unity needs you once", Width = 600, Height = 140, Visible = false };
+        private readonly Button editorButton = new Button { Width = 200, Height = 30 };
+        private readonly Button hubButton = new Button { Width = 200, Height = 30 };
+        private readonly Label unityText = new Label { AutoSize = false, Width = 580, Height = 52 };
+        // While the Unity box is up, notices the sign-in finishing in Unity Hub and carries on by itself.
+        private readonly Timer unityWatch = new Timer { Interval = 3000 };
         private readonly ProgressBar progressBar = new ProgressBar { Width = 600, Height = 16, Maximum = AssetBuild.Steps };
         private readonly Label progressLabel = new Label { AutoSize = true };
         private readonly TextBox logBox = new TextBox
@@ -55,15 +60,7 @@ namespace Straft4Dead.Launcher
             steps.Controls.Add(updateLabel);
 
             // Unity: the one step the launcher can't do alone.
-            var unityText = new Label
-            {
-                AutoSize = false, Width = 580, Height = 34,
-                Text = "Unity packs the L4D2 models into files the game can load. It's free but needs a Unity account: install Unity Hub, " +
-                       $"sign in, then let the Hub install Unity {LauncherConfig.UnityVersion}. Come back and press Check again.",
-            };
-            var hubButton = new Button { Text = "1. Get Unity Hub", Width = 130, Height = 30 };
-            var editorButton = new Button { Text = $"2. Install Unity {LauncherConfig.UnityVersion}", Width = 190, Height = 30 };
-            var checkButton = new Button { Text = "3. Check again", Width = 110, Height = 30 };
+            var checkButton = new Button { Text = "Check again", Width = 100, Height = 30 };
             var pickUnity = new LinkLabel { Text = "Pick Unity.exe…", AutoSize = true, Padding = new Padding(0, 8, 0, 0) };
             var unityButtons = new FlowLayoutPanel { AutoSize = true };
             unityButtons.Controls.AddRange(new Control[] { hubButton, editorButton, checkButton, pickUnity });
@@ -100,13 +97,20 @@ namespace Straft4Dead.Launcher
             updateButton.Click += async (s, e) => await Run(async () => { await Install(); await SetUp(); });
             rebuildButton.Click += async (s, e) => await Run(() => launcher.BuildAssets(OnProgress, force: true));
             uninstallButton.Click += async (s, e) => await Run(OnUninstall);
-            hubButton.Click += async (s, e) => await Run(() => launcher.Tools.InstallUnityHub(launcher.Sources));
-            editorButton.Click += (s, e) =>
+            editorButton.Click += async (s, e) => await Run(async () => { await launcher.Tools.InstallUnityEditor(launcher.Sources); await ContinueIfUnityReady(); });
+            hubButton.Click += async (s, e) => await Run(() => launcher.Tools.OpenUnityHub(launcher.Sources));
+            checkButton.Click += async (s, e) => await Run(async () =>
             {
-                if (Tools.UnityHubExe == null) { MessageBox.Show(this, "Install Unity Hub first (step 1), then sign in to it.", "Straft 4 Dead"); return; }
-                launcher.Tools.InstallUnityEditor();
+                if (!await ContinueIfUnityReady())
+                    Log(launcher.UnityPath == null ? $"Unity {LauncherConfig.UnityVersion} isn't installed yet (step 1)." : "No Unity licence yet: sign in to Unity Hub and add the free Personal licence (step 2).");
+            });
+            unityWatch.Tick += async (s, e) =>
+            {
+                if (busy || !unityBox.Visible || launcher.UnityPath == null || !Tools.HasUnityLicence) return;
+                Log("Unity is ready.");
+                await Run(() => ContinueIfUnityReady());
             };
-            checkButton.Click += async (s, e) => await Run(async () => { launcher.Find(); if (launcher.UnityReady) await SetUp(); });
+            unityWatch.Start();
             pickUnity.LinkClicked += (s, e) => PickFile("Unity.exe|Unity.exe", "Pick Unity.exe (Unity " + LauncherConfig.UnityVersion + "\\Editor\\Unity.exe)", launcher.SetUnityPath);
             zipLink.LinkClicked += async (s, e) => await Run(OnInstallFromZip);
             straftatLink.LinkClicked += (s, e) => PickFolder("Pick the STRAFTAT folder (the one with STRAFTAT.exe)", Steam.IsStraftatFolder, launcher.SetStraftatPath);
@@ -150,6 +154,15 @@ namespace Straft4Dead.Launcher
                 unityBox.Visible = false;
                 Log("Ready! Press Play. To play with friends, host a private lobby in STRAFTAT and invite them through Steam (they need this launcher too).");
             }
+        }
+
+        /// <summary>Carries on with the setup once Unity is installed and licensed.</summary>
+        private async Task<bool> ContinueIfUnityReady()
+        {
+            launcher.Find();
+            if (!launcher.UnityReady) return false;
+            await SetUp();
+            return true;
         }
 
         private async Task Install()
@@ -233,7 +246,7 @@ namespace Straft4Dead.Launcher
             stepLabels[1].Text = $"{Mark(launcher.L4D2Path != null)}  Left 4 Dead 2: {launcher.L4D2Path ?? "not found (you need your own copy, the mod is built from it)"}";
             stepLabels[2].Text = $"{Mark(state.IsInstalled)}  Straft 4 Dead {(state.IsInstalled ? state.ModVersion + " and BepInEx installed" : "and BepInEx: will be installed")}";
             stepLabels[3].Text = $"{Mark(launcher.ToolsReady)}  Python, Blender + SourceIO, Crowbar: {(launcher.ToolsReady ? "ready" : "will be downloaded (portable, about 450 MB)")}";
-            stepLabels[4].Text = $"{Mark(launcher.UnityReady)}  Unity {LauncherConfig.UnityVersion}: {(launcher.UnityReady ? "ready" : launcher.UnityPath != null ? "installed, sign in to Unity Hub" : "needs you once (free Unity account)")}";
+            stepLabels[4].Text = $"{Mark(launcher.UnityReady)}  Unity {LauncherConfig.UnityVersion}: {(launcher.UnityReady ? "ready" : launcher.UnityPath != null ? "installed, sign in to Unity Hub for the free licence" : Tools.HasUnityLicence ? "signed in, Unity needs installing" : "needs you once (free Unity account)")}";
             stepLabels[5].Text = $"{Mark(launcher.AssetsReady)}  L4D2 zombies, survivors, sounds and HUD: {(launcher.AssetsReady ? "built" : "will be built from your L4D2 install")}";
 
             var latest = launcher.Latest;
@@ -250,7 +263,23 @@ namespace Straft4Dead.Launcher
             uninstallButton.Enabled = !busy && (state.IsInstalled || Directory.Exists(launcher.Paths.Profile));
             if (launcher.UnityReady) unityBox.Visible = false;
             else if (state.IsInstalled && launcher.ToolsReady) unityBox.Visible = true;
+            RefreshUnityBox();
             UseWaitCursor = busy;
+        }
+
+        /// <summary>The Unity box: install Unity (the launcher does it), then sign in to Unity Hub for the free licence.</summary>
+        private void RefreshUnityBox()
+        {
+            var installed = launcher.UnityPath != null;
+            var licensed = Tools.HasUnityLicence;
+            unityText.Text =
+                "Unity packs the L4D2 models into files the game can load. It's free, and only needs you for two clicks:\n" +
+                $"1. Install Unity {LauncherConfig.UnityVersion} (about 3 GB; Windows asks once for permission).\n" +
+                "2. Sign in to Unity Hub with a free Unity account and add the free Personal licence. The launcher carries on by itself.";
+            editorButton.Text = installed ? "✔ Unity installed" : $"1. Install Unity {LauncherConfig.UnityVersion}";
+            editorButton.Enabled = !busy && !installed;
+            hubButton.Text = licensed ? "✔ Signed in" : Tools.HasUnityHub ? "2. Open Unity Hub to sign in" : "2. Get Unity Hub and sign in";
+            hubButton.Enabled = !busy && !licensed;
         }
 
         private void Log(string message)

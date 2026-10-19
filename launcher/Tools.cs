@@ -4,13 +4,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 
 namespace Straft4Dead.Launcher
 {
     /// <summary>
     /// The tools the L4D2 asset build needs. Python, Blender (with the SourceIO add-on) and Crowbar are portable, so the
-    /// launcher downloads them into its own tools\ folder; nothing is installed system-wide. Unity can only be
-    /// detected: it needs the player's own (free) Unity sign-in, so the launcher guides them through Unity Hub.
+    /// launcher downloads them into its own tools\ folder; nothing is installed system-wide. Unity is installed
+    /// with Unity's own installer; only its free licence needs the player, who signs in to Unity Hub.
     /// </summary>
     public sealed class Tools
     {
@@ -80,29 +81,70 @@ namespace Straft4Dead.Launcher
 
         // --- Unity ---
 
-        /// <summary>Unity 2021.3.45f2's Unity.exe, from a folder picked by hand or wherever Unity Hub installs editors.</summary>
+        /// <summary>Unity 2021.3.45f2's Unity.exe: picked by hand, installed by the launcher, or wherever Unity Hub
+        /// (the classic install or the Microsoft Store one) or Unity's own installer put it.</summary>
         public string FindUnity(string picked)
         {
+            var v = LauncherConfig.UnityVersion;
             var candidates = new List<string>();
             if (!string.IsNullOrEmpty(picked)) candidates.Add(picked);
             var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            candidates.Add(Path.Combine(programFiles, "Unity", "Hub", "Editor", LauncherConfig.UnityVersion, "Editor", "Unity.exe"));
-            candidates.Add(Path.Combine(programFiles, $"Unity {LauncherConfig.UnityVersion}", "Editor", "Unity.exe"));
-            // Unity Hub's "Installs location" setting, if it was changed.
-            var secondary = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UnityHub", "secondaryInstallPath.json");
-            if (File.Exists(secondary))
+            candidates.Add(Path.Combine(UnityInstallDir, "Editor", "Unity.exe"));
+            candidates.Add(Path.Combine(programFiles, "Unity", "Hub", "Editor", v, "Editor", "Unity.exe"));
+            candidates.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Unity", "Editors", v, "Editor", "Unity.exe"));
+            // Unity Hub's "Installs location" setting, if it was changed (the Store Hub keeps its settings elsewhere).
+            foreach (var hubData in HubDataDirs)
             {
+                var secondary = Path.Combine(hubData, "secondaryInstallPath.json");
+                if (!File.Exists(secondary)) continue;
                 var dir = File.ReadAllText(secondary).Trim().Trim('"').Replace("\\\\", "\\");
-                if (dir.Length > 0) candidates.Add(Path.Combine(dir, LauncherConfig.UnityVersion, "Editor", "Unity.exe"));
+                if (dir.Length > 0) candidates.Add(Path.Combine(dir, v, "Editor", "Unity.exe"));
             }
+            // Unity's installer registers an uninstaller named after the version.
+            foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+                try
+                {
+                    using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                    using var key = hklm.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Unity {v}");
+                    if (key?.GetValue("DisplayIcon") is string icon) candidates.Add(icon.Trim('"').Split(',')[0]);
+                }
+                catch { }
             return candidates.FirstOrDefault(File.Exists);
         }
 
-        /// <summary>A Unity licence is activated on this PC (Unity Hub writes it when you sign in with a Personal licence).</summary>
-        public static bool HasUnityLicence =>
-            File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Unity", "Unity_lic.ulf"));
+        /// <summary>Where the launcher installs Unity: the installer's own default folder.</summary>
+        public static string UnityInstallDir =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Unity " + LauncherConfig.UnityVersion);
 
-        public static string UnityHubExe
+        /// <summary>A Unity licence is activated on this PC: Unity Hub writes one when you sign in and add the free
+        /// Personal licence (the classic licence file, or the newer licensing client's).</summary>
+        public static bool HasUnityLicence =>
+            File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Unity", "Unity_lic.ulf")) ||
+            File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Unity", "licenses", "UnityEntitlementLicense.xml"));
+
+        /// <summary>Unity Hub's settings folders: the classic install's, and the Microsoft Store install's.</summary>
+        private static IEnumerable<string> HubDataDirs
+        {
+            get
+            {
+                yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UnityHub");
+                if (StoreHubPackage is string package)
+                    yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages", package, "LocalCache", "Roaming", "UnityHub");
+            }
+        }
+
+        /// <summary>The Microsoft Store (MSIX) Unity Hub's package family name, if it's installed.</summary>
+        private static string StoreHubPackage
+        {
+            get
+            {
+                var packages = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
+                if (!Directory.Exists(packages)) return null;
+                return Directory.GetDirectories(packages, "UnityTechnologies.UnityHub_*").Select(Path.GetFileName).FirstOrDefault();
+            }
+        }
+
+        private static string ClassicHubExe
         {
             get
             {
@@ -111,19 +153,57 @@ namespace Straft4Dead.Launcher
             }
         }
 
-        /// <summary>Downloads and starts the Unity Hub installer (the player clicks through it).</summary>
-        public async Task InstallUnityHub(Sources sources)
+        public static bool HasUnityHub => ClassicHubExe != null || StoreHubPackage != null;
+
+        /// <summary>Opens Unity Hub so the player can sign in, installing it first if it's missing.</summary>
+        public async Task OpenUnityHub(Sources sources)
         {
-            var setup = await sources.GetUnpinned(LauncherConfig.UnityHubSetupUrl, "UnityHubSetup.exe");
-            log("Starting the Unity Hub installer");
-            Process.Start(new ProcessStartInfo(setup) { UseShellExecute = true });
+            if (ClassicHubExe is string exe)
+            {
+                log("Opening Unity Hub");
+                Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
+                return;
+            }
+            if (StoreHubPackage is string package)
+            {
+                log("Opening Unity Hub");
+                Process.Start(new ProcessStartInfo("explorer.exe", $@"shell:AppsFolder\{package}!UnityHub") { UseShellExecute = true });
+                return;
+            }
+            Exception last = null;
+            foreach (var url in LauncherConfig.UnityHubSetupUrls)
+                try
+                {
+                    var setup = await sources.GetUnpinned(url, "UnityHubSetup.exe");
+                    log("Starting the Unity Hub installer. When it's done, open Unity Hub and sign in.");
+                    Process.Start(new ProcessStartInfo(setup) { UseShellExecute = true });
+                    return;
+                }
+                catch (Exception e) { last = e; log($"  {new Uri(url).AbsolutePath} failed ({e.GetBaseException().Message})"); }
+            log($"Couldn't download Unity Hub; opening {LauncherConfig.UnityDownloadPage} instead.");
+            Steam.Open(LauncherConfig.UnityDownloadPage);
         }
 
-        /// <summary>Asks Unity Hub to install the exact editor version (it shows its own sign-in and install screens).</summary>
-        public void InstallUnityEditor()
+        /// <summary>Downloads Unity's own installer for exactly this version and runs it silently into
+        /// <see cref="UnityInstallDir"/> (Windows asks once for permission). The installer is deleted afterwards.</summary>
+        public async Task InstallUnityEditor(Sources sources)
         {
-            log($"Asking Unity Hub to install Unity {LauncherConfig.UnityVersion}");
-            Steam.Open(LauncherConfig.UnityHubInstallLink);
+            var setup = await sources.GetUnpinned(LauncherConfig.UnityEditorSetupUrl, $"UnitySetup64-{LauncherConfig.UnityVersion}.exe");
+            log($"Installing Unity {LauncherConfig.UnityVersion} into {UnityInstallDir}. Windows asks for permission; this takes a few minutes.");
+            Process process;
+            try
+            {
+                process = Process.Start(new ProcessStartInfo(setup, $"/S /D={UnityInstallDir}") { UseShellExecute = true, Verb = "runas" });
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                throw new InvalidOperationException("Unity wasn't installed because Windows' permission prompt was declined. Press Install Unity to try again.");
+            }
+            await Task.Run(() => process.WaitForExit());
+            try { File.Delete(setup); } catch { }
+            if (!File.Exists(Path.Combine(UnityInstallDir, "Editor", "Unity.exe")))
+                throw new InvalidOperationException($"Unity's installer finished (exit code {process.ExitCode}) but Unity.exe isn't in {UnityInstallDir}.");
+            log($"Unity {LauncherConfig.UnityVersion} installed");
         }
     }
 }

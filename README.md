@@ -33,7 +33,9 @@ Straft 4 Dead is not produced, approved or endorsed by Valve or Lemaitre Bros. I
 
 2. **Left 4 Dead 2** on Steam. The mod builds its zombies, survivors, sounds and HUD from your own copy, so everyone who plays needs one.
 
-3. **A free Unity account.** Unity packs the L4D2 models into files the game can load. The launcher walks you through installing it; you sign in once.
+3. **A free Unity account.** Unity packs the L4D2 models into files the game can load. The launcher installs it; you sign in once.
+
+4. **About 10 GB of free disk space** for the tools and the one-time asset build (about 3.5 GB to download). Unity can be uninstalled afterwards; it's only needed to rebuild the assets.
 
 ### Installation
 
@@ -45,7 +47,11 @@ Straft 4 Dead is not produced, approved or endorsed by Valve or Lemaitre Bros. I
     - installs [BepInEx](https://github.com/BepInEx/BepInEx) and the latest Straft 4 Dead from GitHub,
     - downloads portable [Python](https://www.python.org), [Blender](https://www.blender.org) with the [SourceIO](https://github.com/REDxEYE/SourceIO) add-on, and [Crowbar](https://github.com/ZeqMacaw/Crowbar) (about 450 MB, checked against pinned checksums; nothing is installed system-wide).
 
-3. **Unity, once:** the launcher shows three buttons. **Get Unity Hub** runs Unity's installer; sign in to Unity Hub with a free account (it activates a free Personal licence). **Install Unity 2021.3.45f2** asks the Hub to install the exact version. When it's done, press **Check again**.
+3. **Unity, once:** the launcher shows two buttons.
+    - **Install Unity 2021.3.45f2** downloads Unity's official installer (about 3 GB) and installs it; Windows asks once for permission.
+    - **Get Unity Hub and sign in** (or **Open Unity Hub** if you have it) opens Unity Hub. Sign in with a free Unity account and, if the Hub asks, add the free Personal licence.
+
+    The launcher notices when both are done and carries on by itself. If you already have Unity 2021.3.45f2 somewhere else, use **Pick Unity.exe**.
 
 4. The launcher builds the L4D2 assets from your install, with a progress bar. The first build takes a while because Unity imports everything once.
 
@@ -223,6 +229,6 @@ Straft 4 Dead is released under the [MIT License](LICENSE).
 
 Straft 4 Dead contains no Left 4 Dead 2 or STRAFTAT code or assets. Models, animations, sounds and HUD art are converted at setup from the player's own Left 4 Dead 2 install and loaded at runtime; they are never committed or redistributed. STRAFTAT's internals in [docs/systems-map.md](docs/systems-map.md) were mapped from assembly metadata and reading the game's code locally; no decompiled code is included.
 
-Built with [BepInEx](https://github.com/BepInEx/BepInEx) (LGPL-2.1) and [Harmony](https://github.com/pardeike/Harmony) (MIT), which are installed separately and not included in the release. The asset setup uses [Python](https://www.python.org) (PSF), [Blender](https://www.blender.org) (GPL), [SourceIO](https://github.com/REDxEYE/SourceIO) (MIT), [Crowbar](https://github.com/ZeqMacaw/Crowbar) and Unity; the launcher downloads the first four from their official sources at pinned versions, and Unity is installed through Unity Hub under Unity's own terms.
+Built with [BepInEx](https://github.com/BepInEx/BepInEx) (LGPL-2.1) and [Harmony](https://github.com/pardeike/Harmony) (MIT), which are installed separately and not included in the release. The asset setup uses [Python](https://www.python.org) (PSF), [Blender](https://www.blender.org) (GPL), [SourceIO](https://github.com/REDxEYE/SourceIO) (MIT), [Crowbar](https://github.com/ZeqMacaw/Crowbar) and Unity; the launcher downloads the first four from their official sources at pinned versions, and Unity is installed with Unity's own installer and licensed through Unity Hub under Unity's own terms.
 
 Left 4 Dead 2 is a trademark of Valve Corporation. STRAFTAT is developed by Lemaitre Bros.

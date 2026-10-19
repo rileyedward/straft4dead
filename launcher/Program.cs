@@ -95,7 +95,7 @@ namespace Straft4Dead.Launcher
                     break;
                 case "setup":
                     var missing = await launcher.SetUpEverything(zip, Progress);
-                    if (missing == "unity") throw new InvalidOperationException($"Unity isn't ready: install Unity Hub, sign in, then install Unity {LauncherConfig.UnityVersion} ({LauncherConfig.UnityHubInstallLink}).");
+                    if (missing == "unity") throw new InvalidOperationException($"Unity isn't ready: open the launcher window to install Unity {LauncherConfig.UnityVersion} and sign in to Unity Hub, or pass --unity <Unity.exe>.");
                     if (missing != null) throw new InvalidOperationException(missing);
                     Console.WriteLine("Ready to play.");
                     break;

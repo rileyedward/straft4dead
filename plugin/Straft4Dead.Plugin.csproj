@@ -10,7 +10,7 @@
     <BepInExPluginName>Straft 4 Dead</BepInExPluginName>
     <Product>Straft 4 Dead</Product>
     <Description>Left 4 Dead 2 hordes, survivors and HUD inside STRAFTAT (local play, private lobbies only)</Description>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <RestoreAdditionalProjectSources>

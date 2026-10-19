@@ -71,7 +71,7 @@ namespace Straft4Dead.Launcher
             try
             {
                 Latest = await Sources.LatestModRelease();
-                UpdateCheckError = Latest == null ? $"No Straft 4 Dead release on GitHub yet ({LauncherConfig.GitHubRepo})." : null;
+                UpdateCheckError = Latest == null ? $"No Straft 4 Dead release found on GitHub ({LauncherConfig.GitHubRepo}): the repository is private or has no release yet." : null;
             }
             catch (Exception e)
             {
