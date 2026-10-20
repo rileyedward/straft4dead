@@ -2,6 +2,8 @@
 
 Left 4 Dead 2 inside STRAFTAT.
 
+> **Status:** Experimental — a working prototype built to see what was possible. It isn't being developed further, but you're welcome to download it, try it and make it your own.
+
 ## Overview
 
 ### What is Straft 4 Dead?
@@ -12,7 +14,7 @@ All the zombie AI, the director and the health rules are written from scratch fo
 
 Straft 4 Dead is not produced, approved or endorsed by Valve or Lemaitre Bros. It ships no code or assets from Left 4 Dead 2 or STRAFTAT.
 
-> **Status: personal test build.** Single player has been played and tested in game on several maps. Multiplayer has been tested with two copies of the game on one PC; a real game with friends over Steam hasn't been played yet. See [docs/devlog.md](docs/devlog.md).
+This is a personal test build: single player has been played and tested in game on several maps. Multiplayer has been tested with two copies of the game on one PC; a real game with friends over Steam hasn't been played yet. See [docs/devlog.md](docs/devlog.md).
 
 ### Key Features
 
@@ -222,6 +224,10 @@ The in-game tests run without input. Set `[Dev] AutoTest = true`, pick `[Dev] Au
 | `lan` | With the two-copy setup: damage, bile, a 2v2 down and revive across copies |
 
 To test multiplayer on one PC, build a second copy of the game with `tools\dev\make_client_instance.ps1`, then run both with `bash tools/dev/lan_test.sh <second copy>`. The copies talk over a local connection that only exists when the game is started with `--s4d-lan`.
+
+## Contributing
+
+This was an experiment to see what was possible, and I'm not developing it further, so I'm not reviewing issues or pull requests. You're very welcome to fork it, build on it and make it your own under the license below.
 
 ## Data and Licensing
 
